@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/wikicraft-store",
+    "crates/wikicraft-core",
+    "crates/wikicraft-mcp",
+    "crates/wikicraft-app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Sandra Schipal <sandra@schipal.at>"]
+repository = "https://github.com/sandraschi/wikicraft"
+
+[workspace.dependencies]
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+clap = { version = "4.6.7", features = ["derive"] }
+eframe = { version = "0.37.0", default-features = false, features = ["default_fonts", "wgpu"] }
+egui = { version = "0.37.0", default-features = false }
+rusqlite = { version = "0.40.2", features = ["bundled", "bundled-full"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+thiserror = "2.0.21"
+uuid = { version = "1.29.2", features = ["v4", "fast-rng"] }
