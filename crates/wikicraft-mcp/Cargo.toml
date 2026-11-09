@@ -1,0 +1,18 @@
+[package]
+name = "wikicraft-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "wikicraft"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+craft-biz = { path = "../../../craft-biz/crates/craft-biz" }
+serde.workspace = true
+serde_json.workspace = true
+wikicraft-core = { path = "../wikicraft-core" }
+wikicraft-store = { path = "../wikicraft-store" }

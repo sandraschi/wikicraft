@@ -1,0 +1,20 @@
+[package]
+name = "wikicraft-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "wikicraft-app"
+path = "src/main.rs"
+
+[dependencies]
+craft-biz = { path = "../../../craft-biz/crates/craft-biz" }
+craft-biz-ui = { path = "../../../craft-biz/crates/craft-biz-ui" }
+eframe.workspace = true
+egui.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+wikicraft-core = { path = "../wikicraft-core" }
+wikicraft-store = { path = "../wikicraft-store" }
