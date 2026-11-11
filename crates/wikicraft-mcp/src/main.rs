@@ -68,6 +68,8 @@ enum Cmd {
     AdrList,
     /// Recursively import a directory of markdown files.
     TreeImport { path: PathBuf },
+    /// Seed the wiki with sample documentation and ADRs.
+    SeedDemo,
     /// Drain incoming bus signals.
     InboxDrain,
     /// Print tool specifications.
@@ -202,16 +204,13 @@ fn main() -> ExitCode {
         Cmd::AdrGet { id } => Command::AdrGet { id },
         Cmd::AdrList => Command::AdrList,
         Cmd::TreeImport { path } => Command::TreeImport { path },
+        Cmd::SeedDemo => Command::SeedDemo,
         Cmd::InboxDrain => Command::InboxDrain,
     };
 
     match dispatch(&cmd_target, &mut ctx) {
         Ok(val) => {
-            if cli.json {
-                println!("{}", serde_json::to_string_pretty(&val).unwrap_or_default());
-            } else {
-                println!("{}", serde_json::to_string_pretty(&val).unwrap_or_default());
-            }
+            println!("{}", serde_json::to_string_pretty(&val).unwrap_or_default());
             ExitCode::SUCCESS
         }
         Err(e) => {

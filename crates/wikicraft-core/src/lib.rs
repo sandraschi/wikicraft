@@ -56,6 +56,7 @@ pub enum Command {
     TreeImport {
         path: PathBuf,
     },
+    SeedDemo,
     InboxDrain,
 }
 
@@ -114,6 +115,7 @@ impl Command {
                     path: PathBuf::from(p),
                 }
             }
+            "wiki_seed_demo" => Command::SeedDemo,
             "wiki_inbox_drain" => Command::InboxDrain,
             other => return Err(format!("unknown wikicraft tool: {other}")),
         })
@@ -322,6 +324,44 @@ pub fn dispatch(cmd: &Command, ctx: &mut Ctx) -> Result<Value, String> {
                 "imported_pages": imported
             }))
         }
+        Command::SeedDemo => {
+            let mut pages_created = 0usize;
+            let mut adrs_created = 0usize;
+
+            let p1 = ("architecture/overview", "Architecture Overview", "# WikiCraft Documentation Hub\n\nWelcome to **WikiCraft**, the local-first documentation, SQLite FTS5 search, and Architecture Decision Record (ADR) studio.\n\n## Core Subsystems\n- [[architecture/storage]]: Storage layer architecture, SQLite WAL, and schema design.\n- [[architecture/search]]: FTS5 full-text indexing, tokenizer, and query capabilities.\n- [[fleet/standards]]: Engineering standards, crash guarantees, and protocol conventions.\n- [[guides/getting-started]]: Guide for creating pages, linking documents, and recording decisions.\n\n## Architecture Decisions\nSee [[ADR-001]] for our initial decision on SQLite WAL and FTS5, and [[ADR-002]] for wiki-link bidirectional graph indexing.");
+
+            let p2 = ("architecture/storage", "Storage Layer Architecture", "# Storage Layer & WAL Design\n\nWikiCraft persists all pages, backlinks, and ADRs in a local SQLite database.\n\n## Key Properties\n- **Write-Ahead Logging (WAL)**: Concurrent reads during writes, sub-millisecond transactions.\n- **Embedded Simplicity**: Zero network dependencies, zero background daemons required.\n- **Cross-Links**: Automatically parsed from `[[page-slug]]` syntax.\n\nReferenced by [[architecture/overview]].");
+
+            let p3 = ("architecture/search", "FTS5 Search Engine", "# SQLite FTS5 Search Engine\n\nWikiCraft maintains a synchronous `pages_fts` virtual table powered by SQLite FTS5.\n\n## Features\n- Sub-millisecond prefix and phrase searches.\n- Automated snippet extraction highlighting matched terms.\n- Zero external search service requirements.\n\nSee [[architecture/overview]] and [[architecture/storage]].");
+
+            let p4 = ("fleet/standards", "Fleet Engineering Standards", "# Fleet Engineering Standards\n\nAll tools in the fleet follow unified protocols:\n1. **Zero-Crash Guarantee**: `#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]` enforced.\n2. **High-Contrast Theming**: Minimum 7:1 WCAG contrast on all text surfaces.\n3. **Event Bus Protocol**: Status changes publish signals across the fleet via `craft-biz` bus.\n\nSee [[architecture/overview]] and [[guides/getting-started]].");
+
+            let p5 = ("guides/getting-started", "Getting Started with WikiCraft", "# Getting Started Guide\n\n1. Browse documentation in the **Pages** tree.\n2. Search across all articles instantly in the **Search** tab.\n3. Inspect decision lifecycles in the **ADR Matrix** tab.\n4. Explore bidirectional cross-references in the **Wiki Graph** tab.\n\nBack to [[architecture/overview]].");
+
+            for (id, title, content) in &[p1, p2, p3, p4, p5] {
+                if ctx.store.save_page(id, title, content).is_ok() {
+                    let links = extract_wiki_links(content);
+                    let _ = ctx.store.save_links(id, &links);
+                    pages_created += 1;
+                }
+            }
+
+            let a1 = ("ADR-001", "Adopt SQLite WAL and FTS5 for Local Knowledge Store", AdrStatus::Accepted, "Need a zero-dependency, local-first embedded database for documentation and search without external services.", "Adopt SQLite with WAL journaling and FTS5 full-text indexing.", "Instant startup, zero cloud cost, ACID reliability, and sub-millisecond search.", None);
+            let a2 = ("ADR-002", "Bidirectional Wiki-Link Syntax Parsing", AdrStatus::Accepted, "Need cross-document linking and backlink tracking across markdown pages.", "Parse [[page-slug]] syntax at save time and maintain a normalized links table.", "Instant backlink lookup and topology graph visualization.", None);
+            let a3 = ("ADR-003", "Centralized Remote Cloud Wiki Sync", AdrStatus::Rejected, "Proposal to sync all markdown documents to a remote cloud SaaS wiki.", "Rejected in favor of local-first SQLite WAL and fleet event bus synchronization.", "Preserves zero-latency, full privacy, and offline functionality.", None);
+
+            for (id, title, status, context, decision, consequences, superseded_by) in &[a1, a2, a3] {
+                if ctx.store.save_adr(id, title, status, context, decision, consequences, *superseded_by).is_ok() {
+                    adrs_created += 1;
+                }
+            }
+
+            Ok(json!({
+                "seeded": true,
+                "pages_created": pages_created,
+                "adrs_created": adrs_created
+            }))
+        }
         Command::InboxDrain => {
             let pending = ctx.bus.pending("wikicraft").map_err(|e| e.to_string())?;
             let mut applied = 0usize;
@@ -417,6 +457,12 @@ pub fn tools() -> Vec<Value> {
                 "path": { "type": "string" }
             }),
             &["path"],
+        ),
+        tool(
+            "wiki_seed_demo",
+            "Seed the wiki with sample architecture documentation, cross-links, and ADRs",
+            json!({}),
+            &[],
         ),
         tool(
             "wiki_inbox_drain",
