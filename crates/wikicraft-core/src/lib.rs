@@ -67,6 +67,9 @@ pub enum Command {
     GhWikiStatus {
         repo: String,
     },
+    SiteExport {
+        out_dir: PathBuf,
+    },
     InboxDrain,
 }
 
@@ -136,6 +139,12 @@ impl Command {
             "wiki_gh_status" => Command::GhWikiStatus {
                 repo: s(a, "repo")?.to_string(),
             },
+            "wiki_site_export" => {
+                let p = s(a, "out_dir")?;
+                Command::SiteExport {
+                    out_dir: PathBuf::from(p),
+                }
+            }
             "wiki_inbox_drain" => Command::InboxDrain,
             other => return Err(format!("unknown wikicraft tool: {other}")),
         })
@@ -296,7 +305,14 @@ pub fn gh_wiki_push(repo: &str, custom_msg: Option<&str>, ctx: &mut Ctx) -> Resu
         }
 
         let _ = std::process::Command::new("git")
-            .args(["-C", &dir.to_string_lossy(), "remote", "add", "origin", &remote_url])
+            .args([
+                "-C",
+                &dir.to_string_lossy(),
+                "remote",
+                "add",
+                "origin",
+                &remote_url,
+            ])
             .output();
     }
 
@@ -353,7 +369,14 @@ pub fn gh_wiki_push(repo: &str, custom_msg: Option<&str>, ctx: &mut Ctx) -> Resu
 
     // Push to remote (try master, fallback main)
     let push_out = std::process::Command::new("git")
-        .args(["-C", &dir.to_string_lossy(), "push", "-u", "origin", "master"])
+        .args([
+            "-C",
+            &dir.to_string_lossy(),
+            "push",
+            "-u",
+            "origin",
+            "master",
+        ])
         .output()
         .map_err(|e| format!("failed to run git push: {e}"))?;
 
@@ -411,6 +434,704 @@ pub fn gh_wiki_status(repo: &str) -> Result<Value, String> {
         "local_dir": dir.to_string_lossy(),
         "initialized": exists,
         "last_commit": commit_info
+    }))
+}
+
+/// Escape HTML special characters.
+pub fn escape_html(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for c in input.chars() {
+        match c {
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '&' => out.push_str("&amp;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+/// Convert page ID to safe HTML filename.
+pub fn page_id_to_filename(id: &str) -> String {
+    let clean = id.replace(['/', '\\', ' '], "__");
+    format!("{clean}.html")
+}
+
+fn process_basic_inlines(text: &str) -> String {
+    let escaped = escape_html(text);
+    let mut res = String::new();
+    let mut parts = escaped.split('`');
+    let mut in_code = false;
+    for part in parts.by_ref() {
+        if in_code {
+            res.push_str("<code>");
+            res.push_str(part);
+            res.push_str("</code>");
+        } else {
+            let mut bold_res = String::new();
+            let mut bold_parts = part.split("**");
+            let mut in_bold = false;
+            for bpart in bold_parts.by_ref() {
+                if in_bold {
+                    bold_res.push_str("<strong>");
+                    bold_res.push_str(bpart);
+                    bold_res.push_str("</strong>");
+                } else {
+                    bold_res.push_str(bpart);
+                }
+                in_bold = !in_bold;
+            }
+            res.push_str(&bold_res);
+        }
+        in_code = !in_code;
+    }
+    res
+}
+
+fn inline_markdown_to_html(text: &str) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+
+    while !rest.is_empty() {
+        if let Some(start) = rest.find("[[") {
+            let before = &rest[..start];
+            out.push_str(&process_basic_inlines(before));
+            let after_open = &rest[start + 2..];
+            if let Some(end) = after_open.find("]]") {
+                let inside = &after_open[..end];
+                let (target, label) = match inside.split_once('|') {
+                    Some((t, l)) => (t.trim(), l.trim()),
+                    None => (inside.trim(), inside.trim()),
+                };
+                let href = format!("./{}", page_id_to_filename(target));
+                out.push_str(&format!(
+                    r#"<a class="wiki-link" href="{href}">{}</a>"#,
+                    escape_html(label)
+                ));
+                rest = &after_open[end + 2..];
+            } else {
+                out.push_str("[[");
+                rest = after_open;
+            }
+        } else {
+            out.push_str(&process_basic_inlines(rest));
+            break;
+        }
+    }
+    out
+}
+
+pub fn markdown_to_html(markdown: &str) -> String {
+    let mut html = String::new();
+    let mut in_code_block = false;
+    let mut in_list = false;
+
+    for line in markdown.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") {
+            if in_code_block {
+                html.push_str("</code></pre>\n");
+                in_code_block = false;
+            } else {
+                if in_list {
+                    html.push_str("</ul>\n");
+                    in_list = false;
+                }
+                let lang = trimmed.trim_start_matches('`').trim();
+                let class_attr = if lang.is_empty() {
+                    String::new()
+                } else {
+                    format!(r#" class="language-{}""#, escape_html(lang))
+                };
+                html.push_str(&format!("<pre><code{class_attr}>"));
+                in_code_block = true;
+            }
+            continue;
+        }
+
+        if in_code_block {
+            html.push_str(&escape_html(line));
+            html.push('\n');
+            continue;
+        }
+
+        if let Some(h) = trimmed.strip_prefix("# ") {
+            if in_list {
+                html.push_str("</ul>\n");
+                in_list = false;
+            }
+            html.push_str(&format!("<h1>{}</h1>\n", inline_markdown_to_html(h)));
+        } else if let Some(h) = trimmed.strip_prefix("## ") {
+            if in_list {
+                html.push_str("</ul>\n");
+                in_list = false;
+            }
+            html.push_str(&format!("<h2>{}</h2>\n", inline_markdown_to_html(h)));
+        } else if let Some(h) = trimmed.strip_prefix("### ") {
+            if in_list {
+                html.push_str("</ul>\n");
+                in_list = false;
+            }
+            html.push_str(&format!("<h3>{}</h3>\n", inline_markdown_to_html(h)));
+        } else if let Some(h) = trimmed.strip_prefix("#### ") {
+            if in_list {
+                html.push_str("</ul>\n");
+                in_list = false;
+            }
+            html.push_str(&format!("<h4>{}</h4>\n", inline_markdown_to_html(h)));
+        } else if let Some(item) = trimmed
+            .strip_prefix("- ")
+            .or_else(|| trimmed.strip_prefix("* "))
+        {
+            if !in_list {
+                html.push_str("<ul>\n");
+                in_list = true;
+            }
+            html.push_str(&format!("  <li>{}</li>\n", inline_markdown_to_html(item)));
+        } else if let Some(quote) = trimmed.strip_prefix("> ") {
+            if in_list {
+                html.push_str("</ul>\n");
+                in_list = false;
+            }
+            html.push_str(&format!(
+                "<blockquote>{}</blockquote>\n",
+                inline_markdown_to_html(quote)
+            ));
+        } else if trimmed.is_empty() {
+            if in_list {
+                html.push_str("</ul>\n");
+                in_list = false;
+            }
+        } else {
+            if in_list {
+                html.push_str("</ul>\n");
+                in_list = false;
+            }
+            html.push_str(&format!("<p>{}</p>\n", inline_markdown_to_html(trimmed)));
+        }
+    }
+
+    if in_code_block {
+        html.push_str("</code></pre>\n");
+    }
+    if in_list {
+        html.push_str("</ul>\n");
+    }
+
+    html
+}
+
+fn site_css() -> &'static str {
+    r#"/* WikiCraft High-Contrast WCAG 7:1 Static Site Stylesheet */
+:root {
+  --bg: #090d16;
+  --panel: #131c2e;
+  --card: #182238;
+  --border: #273852;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent-hover: #0284c7;
+  --link: #60a5fa;
+  --code-bg: #0b1120;
+  --badge-green: #10b981;
+  --badge-blue: #0ea5e9;
+  --badge-red: #f43f5e;
+  --badge-gray: #64748b;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --card: #f1f5f9;
+  --border: #cbd5e1;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --accent: #0284c7;
+  --accent-hover: #0369a1;
+  --link: #2563eb;
+  --code-bg: #e2e8f0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+header .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+header .actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.theme-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.theme-btn:hover {
+  border-color: var(--accent);
+}
+
+.container {
+  display: flex;
+  flex: 1;
+}
+
+aside.sidebar {
+  width: 320px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: calc(100vh - 58px);
+  position: sticky;
+  top: 58px;
+  overflow-y: auto;
+}
+
+.sidebar input#search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.sidebar input#search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sidebar-nav a {
+  display: block;
+  padding: 0.45rem 0.65rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-nav a:hover, .sidebar-nav a.active {
+  background: var(--card);
+  color: var(--accent);
+}
+
+main.content {
+  flex: 1;
+  padding: 2.5rem 3.5rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.breadcrumbs {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.breadcrumbs a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+h1 { font-size: 2.2rem; margin-bottom: 1rem; color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; }
+h2 { font-size: 1.5rem; margin-top: 1.75rem; margin-bottom: 0.75rem; color: var(--text); }
+h3 { font-size: 1.2rem; margin-top: 1.25rem; margin-bottom: 0.5rem; color: var(--text); }
+p { margin-bottom: 1rem; }
+ul, ol { margin-left: 1.5rem; margin-bottom: 1rem; }
+li { margin-bottom: 0.25rem; }
+blockquote {
+  border-left: 4px solid var(--accent);
+  padding: 0.5rem 1rem;
+  background: var(--card);
+  color: var(--text-muted);
+  margin: 1rem 0;
+  border-radius: 0 6px 6px 0;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--code-bg);
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+
+a {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+a.wiki-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  background: rgba(56, 189, 248, 0.1);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+a.wiki-link:hover {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.backlinks-box {
+  margin-top: 3rem;
+  padding: 1.25rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.backlinks-box h3 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge-accepted { background: var(--badge-green); color: #ffffff; }
+.badge-proposed { background: var(--badge-blue); color: #ffffff; }
+.badge-rejected { background: var(--badge-red); color: #ffffff; }
+.badge-superseded { background: var(--badge-gray); color: #ffffff; }
+
+.adr-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.adr-card .header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .container { flex-direction: column; }
+  aside.sidebar { width: 100%; height: auto; position: static; }
+  main.content { padding: 1.5rem 1rem; }
+}
+"#
+}
+
+fn site_js() -> &'static str {
+    r#"document.addEventListener('DOMContentLoaded', () => {
+  const q = document.getElementById('search-input');
+  if (q) {
+    q.addEventListener('input', (e) => {
+      const val = e.target.value.toLowerCase();
+      document.querySelectorAll('.sidebar-nav a').forEach(el => {
+        const text = el.textContent.toLowerCase();
+        el.style.display = text.includes(val) ? '' : 'none';
+      });
+    });
+  }
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('wikicraft-theme', next);
+      btn.textContent = next === 'dark' ? '☀️ Light' : '🌙 Dark';
+    });
+    const saved = localStorage.getItem('wikicraft-theme');
+    if (saved) {
+      document.documentElement.setAttribute('data-theme', saved);
+      btn.textContent = saved === 'dark' ? '☀️ Light' : '🌙 Dark';
+    }
+  }
+});
+"#
+}
+
+fn render_html_page(
+    title: &str,
+    current_filename: &str,
+    content_html: &str,
+    pages: &[wikicraft_store::PageSummary],
+    backlinks: &[String],
+) -> String {
+    let mut nav_links = String::new();
+    nav_links.push_str(r#"<a href="./index.html" class=""#);
+    if current_filename == "index.html" {
+        nav_links.push_str("active");
+    }
+    nav_links.push_str(r#"">🏠 Home / Portal</a>"#);
+
+    nav_links.push_str(r#"<a href="./adrs.html" class=""#);
+    if current_filename == "adrs.html" {
+        nav_links.push_str("active");
+    }
+    nav_links.push_str(r#"">⚖️ ADR Matrix</a>"#);
+
+    for p in pages {
+        let fn_name = page_id_to_filename(&p.id);
+        let active = if current_filename == fn_name {
+            " active"
+        } else {
+            ""
+        };
+        nav_links.push_str(&format!(
+            r#"<a href="./{fn_name}" class="{active}" title="{}">📄 {}</a>"#,
+            escape_html(&p.title),
+            escape_html(&p.id)
+        ));
+    }
+
+    let mut bl_section = String::new();
+    if !backlinks.is_empty() {
+        bl_section.push_str(r#"<div class="backlinks-box"><h3>🔗 Backlinks</h3><ul>"#);
+        for bl in backlinks {
+            let fn_name = page_id_to_filename(bl);
+            bl_section.push_str(&format!(
+                r#"<li><a class="wiki-link" href="./{fn_name}">{}</a></li>"#,
+                escape_html(bl)
+            ));
+        }
+        bl_section.push_str("</ul></div>");
+    }
+
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{} - WikiCraft</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header>
+    <a href="./index.html" class="brand">
+      <span>📚</span>
+      <span>WikiCraft</span>
+    </a>
+    <div class="actions">
+      <a href="./adrs.html" style="font-size:0.9rem; text-decoration:none; color:var(--text-muted); font-weight:600;">ADRs</a>
+      <button id="theme-toggle" class="theme-btn">☀️ Light</button>
+    </div>
+  </header>
+  <div class="container">
+    <aside class="sidebar">
+      <input type="text" id="search-input" placeholder="🔍 Filter pages...">
+      <nav class="sidebar-nav">
+        {}
+      </nav>
+    </aside>
+    <main class="content">
+      <div class="breadcrumbs">
+        <a href="./index.html">WikiCraft</a> / {}
+      </div>
+      {}
+      {}
+    </main>
+  </div>
+  <script src="./script.js"></script>
+</body>
+</html>"#,
+        escape_html(title),
+        nav_links,
+        escape_html(title),
+        content_html,
+        bl_section
+    )
+}
+
+/// Export wiki documentation and ADRs to a standalone static HTML website.
+pub fn export_static_site(out_dir: &Path, ctx: &mut Ctx) -> Result<Value, String> {
+    std::fs::create_dir_all(out_dir)
+        .map_err(|e| format!("failed to create out_dir {}: {e}", out_dir.display()))?;
+
+    // Write CSS and JS
+    std::fs::write(out_dir.join("style.css"), site_css())
+        .map_err(|e| format!("failed to write style.css: {e}"))?;
+    std::fs::write(out_dir.join("script.js"), site_js())
+        .map_err(|e| format!("failed to write script.js: {e}"))?;
+
+    let pages = ctx.store.list_pages().map_err(|e| e.to_string())?;
+    let adrs = ctx.store.list_adrs().map_err(|e| e.to_string())?;
+
+    // Export each page
+    let mut exported_pages = 0usize;
+    for p_summary in &pages {
+        if let Ok(full_page) = ctx.store.get_page(&p_summary.id) {
+            let backlinks = ctx.store.get_backlinks(&p_summary.id).unwrap_or_default();
+            let body_html = markdown_to_html(&full_page.content);
+            let fn_name = page_id_to_filename(&p_summary.id);
+            let full_html =
+                render_html_page(&full_page.title, &fn_name, &body_html, &pages, &backlinks);
+            let target_path = out_dir.join(fn_name);
+            std::fs::write(&target_path, full_html)
+                .map_err(|e| format!("failed to write {}: {e}", target_path.display()))?;
+            exported_pages += 1;
+        }
+    }
+
+    // Export adrs.html
+    let mut adrs_content = String::new();
+    adrs_content.push_str("<h1>Architecture Decision Records (ADRs)</h1>\n");
+    adrs_content.push_str("<p>Overview of technical architecture and architectural decisions recorded in this system.</p>\n");
+
+    for adr in &adrs {
+        let badge_class = match adr.status.to_lowercase().as_str() {
+            "accepted" => "badge-accepted",
+            "proposed" => "badge-proposed",
+            "rejected" => "badge-rejected",
+            _ => "badge-superseded",
+        };
+        adrs_content.push_str(&format!(
+            r#"<div class="adr-card">
+  <div class="header">
+    <h2>{} - {}</h2>
+    <span class="badge {badge_class}">{}</span>
+  </div>
+  <p><strong>Context:</strong> {}</p>
+  <p><strong>Decision:</strong> {}</p>
+  <p><strong>Consequences:</strong> {}</p>
+"#,
+            escape_html(&adr.id),
+            escape_html(&adr.title),
+            escape_html(&adr.status),
+            escape_html(&adr.context),
+            escape_html(&adr.decision),
+            escape_html(&adr.consequences),
+        ));
+        if let Some(ref sup) = adr.superseded_by {
+            adrs_content.push_str(&format!(
+                r#"  <p><strong>Superseded By:</strong> {}</p>"#,
+                escape_html(sup)
+            ));
+        }
+        adrs_content.push_str("</div>\n");
+    }
+
+    let adrs_html = render_html_page(
+        "Architecture Decision Records",
+        "adrs.html",
+        &adrs_content,
+        &pages,
+        &[],
+    );
+    std::fs::write(out_dir.join("adrs.html"), adrs_html)
+        .map_err(|e| format!("failed to write adrs.html: {e}"))?;
+
+    // Export index.html
+    let mut index_content = String::new();
+    index_content.push_str("<h1>WikiCraft Documentation Hub</h1>\n");
+    index_content.push_str(&format!(
+        "<p>Welcome to the static documentation portal. Currently tracking <strong>{}</strong> documentation pages and <strong>{}</strong> architecture decisions.</p>\n",
+        pages.len(),
+        adrs.len()
+    ));
+
+    // If there is a "Home" or "overview" page, show its content as the home article!
+    let featured = pages
+        .iter()
+        .find(|p| p.id.eq_ignore_ascii_case("home") || p.id.ends_with("/overview"))
+        .or_else(|| pages.first());
+
+    if let Some(f) = featured {
+        if let Ok(feat_page) = ctx.store.get_page(&f.id) {
+            index_content.push_str(&format!(
+                "<hr style=\"border:0; border-top:1px solid var(--border); margin:1.5rem 0;\">\n<h2>Featured: {}</h2>\n",
+                escape_html(&feat_page.title)
+            ));
+            index_content.push_str(&markdown_to_html(&feat_page.content));
+        }
+    }
+
+    let index_html = render_html_page("Home", "index.html", &index_content, &pages, &[]);
+    std::fs::write(out_dir.join("index.html"), index_html)
+        .map_err(|e| format!("failed to write index.html: {e}"))?;
+
+    Ok(json!({
+        "exported_pages": exported_pages,
+        "exported_adrs": adrs.len(),
+        "out_dir": out_dir.to_string_lossy(),
+        "index_file": out_dir.join("index.html").to_string_lossy()
     }))
 }
 
@@ -641,6 +1362,7 @@ pub fn dispatch(cmd: &Command, ctx: &mut Ctx) -> Result<Value, String> {
         Command::GhWikiPull { repo } => gh_wiki_pull(repo, ctx),
         Command::GhWikiPush { repo, message } => gh_wiki_push(repo, message.as_deref(), ctx),
         Command::GhWikiStatus { repo } => gh_wiki_status(repo),
+        Command::SiteExport { out_dir } => export_static_site(out_dir, ctx),
         Command::InboxDrain => {
             let pending = ctx.bus.pending("wikicraft").map_err(|e| e.to_string())?;
             let mut applied = 0usize;
@@ -779,6 +1501,14 @@ pub fn tools() -> Vec<Value> {
             &["repo"],
         ),
         tool(
+            "wiki_site_export",
+            "Export the wiki documentation and ADRs to a standalone static HTML website ready for GitHub Pages or offline browsing",
+            json!({
+                "out_dir": { "type": "string", "description": "Target output directory for the static HTML site" }
+            }),
+            &["out_dir"],
+        ),
+        tool(
             "wiki_inbox_drain",
             "Acknowledge and clear pending inbound signals in the wikicraft inbox",
             json!({}),
@@ -839,5 +1569,33 @@ mod tests {
         };
         let adr_res = dispatch(&adr_cmd, &mut ctx).unwrap();
         assert!(adr_res.get("saved").unwrap().as_bool().unwrap());
+
+        let export_dir = temp_dir.join("site");
+        let export_cmd = Command::SiteExport {
+            out_dir: export_dir.clone(),
+        };
+        let export_res = dispatch(&export_cmd, &mut ctx).unwrap();
+        assert_eq!(
+            export_res.get("exported_pages").unwrap().as_u64().unwrap(),
+            1
+        );
+        assert_eq!(
+            export_res.get("exported_adrs").unwrap().as_u64().unwrap(),
+            1
+        );
+        assert!(export_dir.join("index.html").exists());
+        assert!(export_dir.join("adrs.html").exists());
+        assert!(export_dir.join("style.css").exists());
+    }
+
+    #[test]
+    fn test_markdown_to_html_formatting() {
+        let md = "# Title\n\nWelcome to [[guide/getting-started|Getting Started]].\n\n```rust\nfn main() {}\n```";
+        let html = markdown_to_html(md);
+        assert!(html.contains("<h1>Title</h1>"));
+        assert!(html.contains(
+            r#"<a class="wiki-link" href="./guide__getting-started.html">Getting Started</a>"#
+        ));
+        assert!(html.contains(r#"<pre><code class="language-rust">fn main() {}"#));
     }
 }

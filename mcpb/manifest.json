@@ -1,0 +1,46 @@
+{
+  "manifest_version": "0.2",
+  "name": "wikicraft",
+  "display_name": "WikiCraft",
+  "version": "__VERSION__",
+  "description": "Local-first markdown wiki, SQLite FTS5 search, ADR studio, and GitHub Wiki sync.",
+  "author": {
+    "name": "Sandra Schipal",
+    "url": "https://github.com/sandraschi"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sandraschi/wikicraft"
+  },
+  "license": "MIT OR Apache-2.0",
+  "server": {
+    "type": "binary",
+    "entry_point": "wikicraft-mcp.exe",
+    "mcp_config": {
+      "command": "${__dirname}/wikicraft-mcp.exe",
+      "args": ["mcp"]
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32"]
+  },
+  "tools": [
+    { "name": "wiki_status", "description": "Report wikicraft status, page counts, ADR counts, and health" },
+    { "name": "wiki_page_save", "description": "Create or update a wiki documentation page" },
+    { "name": "wiki_page_get", "description": "Retrieve a wiki page by ID with backlinks and outgoing links" },
+    { "name": "wiki_page_list", "description": "List all documentation pages" },
+    { "name": "wiki_page_delete", "description": "Delete a documentation page by ID" },
+    { "name": "wiki_page_search", "description": "Full-text search (SQLite FTS5) across documentation pages" },
+    { "name": "wiki_page_backlinks", "description": "Find all pages that link to the given page ID" },
+    { "name": "wiki_adr_save", "description": "Create or update an Architecture Decision Record (ADR)" },
+    { "name": "wiki_adr_get", "description": "Get details of an Architecture Decision Record (ADR)" },
+    { "name": "wiki_adr_list", "description": "List all Architecture Decision Records (ADRs)" },
+    { "name": "wiki_tree_import", "description": "Recursively import a directory of Markdown documentation files into the wiki" },
+    { "name": "wiki_seed_demo", "description": "Seed the wiki with sample architecture documentation, cross-links, and ADRs" },
+    { "name": "wiki_gh_pull", "description": "Clone or pull a GitHub repository wiki and ingest all markdown pages into the SQLite index" },
+    { "name": "wiki_gh_push", "description": "Export all wiki pages and ADRs to a GitHub Wiki repository, generate _Sidebar.md navigation, and push via git" },
+    { "name": "wiki_gh_status", "description": "Check local clone state and remote commit information for a GitHub Wiki repository" },
+    { "name": "wiki_site_export", "description": "Export the wiki documentation and ADRs to a standalone static HTML website ready for GitHub Pages or offline browsing" },
+    { "name": "wiki_inbox_drain", "description": "Acknowledge and clear pending inbound signals in the wikicraft inbox" }
+  ]
+}

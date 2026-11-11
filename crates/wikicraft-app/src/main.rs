@@ -44,12 +44,24 @@ struct App {
     show_gh_wiki_bar: bool,
     gh_wiki_repo: String,
     gh_wiki_status_info: Option<String>,
+    // Static Site Export drawer state
+    show_export_bar: bool,
+    export_site_path: String,
+    last_export_info: Option<String>,
 }
 
 impl App {
     fn new(ctx: Ctx, db_path: PathBuf) -> Self {
         let s_path = settings_path(&db_path);
         let settings = UiSettings::load(&s_path);
+        let default_export = std::env::var("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join("wikicraft")
+            .join("site")
+            .to_string_lossy()
+            .to_string();
+
         let mut app = Self {
             ctx,
             _db_path: db_path,
@@ -77,6 +89,9 @@ impl App {
             show_gh_wiki_bar: false,
             gh_wiki_repo: "sandraschi/wikicraft".to_string(),
             gh_wiki_status_info: None,
+            show_export_bar: false,
+            export_site_path: default_export,
+            last_export_info: None,
         };
         app.reload();
         app
@@ -200,12 +215,7 @@ impl App {
             return;
         }
         self.status_msg = format!("Pulling GitHub wiki for {repo}...");
-        match dispatch(
-            &Command::GhWikiPull {
-                repo: repo.clone(),
-            },
-            &mut self.ctx,
-        ) {
+        match dispatch(&Command::GhWikiPull { repo: repo.clone() }, &mut self.ctx) {
             Ok(res) => {
                 let count = res
                     .get("imported_pages")
@@ -268,10 +278,7 @@ impl App {
                     .get("last_commit")
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
-                let url = res
-                    .get("remote_url")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
+                let url = res.get("remote_url").and_then(|v| v.as_str()).unwrap_or("");
                 self.gh_wiki_status_info = Some(format!(
                     "Remote: {url} | Initialized: {init} | Last commit: {last}"
                 ));
@@ -280,6 +287,43 @@ impl App {
                 self.gh_wiki_status_info = Some(format!("Status error: {e}"));
             }
         }
+    }
+
+    fn export_site(&mut self) {
+        let path = PathBuf::from(&self.export_site_path);
+        self.status_msg = format!("Exporting static HTML site to {}...", path.display());
+        match dispatch(
+            &Command::SiteExport {
+                out_dir: path.clone(),
+            },
+            &mut self.ctx,
+        ) {
+            Ok(res) => {
+                let pages = res
+                    .get("exported_pages")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                let adrs = res
+                    .get("exported_adrs")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                let idx = res.get("index_file").and_then(|v| v.as_str()).unwrap_or("");
+                self.last_export_info = Some(format!(
+                    "Exported {pages} pages, {adrs} ADRs to {}",
+                    path.display()
+                ));
+                self.status_msg =
+                    format!("🌐 Exported {pages} pages & {adrs} ADRs to HTML site ({idx})");
+            }
+            Err(e) => {
+                self.status_msg = format!("Site Export error: {e}");
+            }
+        }
+    }
+
+    fn open_site_folder(&self) {
+        let p = &self.export_site_path;
+        let _ = std::process::Command::new("explorer").arg(p).spawn();
     }
 }
 
@@ -376,6 +420,19 @@ impl eframe::App for App {
                 .clicked()
             {
                 self.show_gh_wiki_bar = !self.show_gh_wiki_bar;
+            }
+
+            let site_text = if self.show_export_bar {
+                "🚀 Export Site ▲"
+            } else {
+                "🚀 Export Site ▼"
+            };
+            if ui
+                .button(site_text)
+                .on_hover_text("Export wiki to standalone static HTML website (GitHub Pages ready)")
+                .clicked()
+            {
+                self.show_export_bar = !self.show_export_bar;
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -506,7 +563,9 @@ impl eframe::App for App {
 
                         if ui
                             .button("⬇️ Pull Wiki")
-                            .on_hover_text("Clone or pull the GitHub wiki repository and ingest its pages")
+                            .on_hover_text(
+                                "Clone or pull the GitHub wiki repository and ingest its pages",
+                            )
                             .clicked()
                         {
                             self.pull_gh_wiki();
@@ -514,7 +573,9 @@ impl eframe::App for App {
 
                         if ui
                             .button("⬆️ Push Wiki")
-                            .on_hover_text("Export pages, generate _Sidebar.md navigation, and push to GitHub")
+                            .on_hover_text(
+                                "Export pages, generate _Sidebar.md navigation, and push to GitHub",
+                            )
                             .clicked()
                         {
                             self.push_gh_wiki();
@@ -529,6 +590,49 @@ impl eframe::App for App {
                         }
 
                         if let Some(ref info) = self.gh_wiki_status_info {
+                            ui.separator();
+                            ui.label(RichText::new(info).color(t.accent));
+                        }
+                    });
+                });
+        }
+
+        // Expandable Static Site Export Bar
+        if self.show_export_bar {
+            ui.add_space(4.0);
+            egui::Frame::group(ui.style())
+                .fill(t.sunken)
+                .stroke(Stroke::new(1.0, t.border))
+                .corner_radius(CornerRadius::same(6))
+                .show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(RichText::new("Export Static Site:").strong().color(t.text));
+                        ui.label(RichText::new("Out Dir:").color(t.text_weak));
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.export_site_path)
+                                .hint_text("destination path")
+                                .desired_width(260.0),
+                        );
+
+                        if ui
+                            .button("🌐 Generate Static Site")
+                            .on_hover_text(
+                                "Build HTML files, WCAG 7:1 stylesheet, and client search script",
+                            )
+                            .clicked()
+                        {
+                            self.export_site();
+                        }
+
+                        if ui
+                            .button("📂 Open Folder")
+                            .on_hover_text("Open export directory in file explorer")
+                            .clicked()
+                        {
+                            self.open_site_folder();
+                        }
+
+                        if let Some(ref info) = self.last_export_info {
                             ui.separator();
                             ui.label(RichText::new(info).color(t.accent));
                         }
