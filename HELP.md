@@ -18,6 +18,7 @@ target\release\wikicraft.exe
 - **🌱 Seed Demo:** Bootstrap sample architecture docs, wiki links, and ADRs with a single click.
 - **📂 Ingest Docs:** 1-click batch ingestion of `mcp-central-docs` sections (`Standards`, `Patterns`, `Operations`, `Troubleshooting`, `Architecture`) or any custom markdown directory.
 - **🌐 GH Wiki Sync:** 1-click bidirectional synchronization drawer for any `sandraschi/<repo>` GitHub Wiki (Pull, Push with auto-generated `_Sidebar.md`, Status).
+- **🚀 Export Site:** 1-click generation of standalone static HTML documentation sites with responsive WCAG 7:1 dark/light stylesheet, client search filter, and ADR matrix.
 - **🏛️ ADR Matrix:** Filterable table tracking architectural decisions across `proposed`, `accepted`, `rejected`, and `superseded` states.
 - **🕸️ Wiki Graph:** Interactive topology view mapping outgoing links and incoming backlinks.
 
@@ -42,8 +43,15 @@ wikicraft-mcp adr-save <id> <title> [status] [context] [decision] [consequences]
 wikicraft-mcp adr-get <id>
 wikicraft-mcp adr-list
 
-# Directory Import & Ingestion
+# Directory Import & Live Watcher
 wikicraft-mcp tree-import <directory-path>
+wikicraft-mcp watch <directory-path> [--poll-interval-secs 2]
+
+# Static Site Export
+wikicraft-mcp site-export <out-dir>
+
+# HTTP & MCP Dual Transport Gateway (port 11261)
+wikicraft-mcp serve [--port 11261] [--host 127.0.0.1]
 
 # GitHub Wiki Synchronization
 wikicraft-mcp gh-pull <repo>

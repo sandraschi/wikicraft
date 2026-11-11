@@ -14,8 +14,12 @@ Part of the **Back-Office Craft Suite** (`craft-biz`). Replaces Confluence (\$60
 - **High-Contrast Desktop Workstation (`egui 0.37`):** Built with `craft-biz-ui` high-contrast tokens (WCAG 7:1 compliant), Dark/Light theme switching, structured markdown reader, live page editor, and sidebar search filter.
 - **1-Click Fleet Documentation Ingestion:** Ingest curated `mcp-central-docs` sections (`Standards`, `Patterns`, `Operations`, `Troubleshooting`, `Architecture`) or any local folder into SQLite WAL + FTS5 in seconds.
 - **Bootstrap Seed:** One-click `🌱 Seed Demo` button to populate sample architecture docs and ADRs instantly.
-- **Dual Surface:** Native desktop app (`wikicraft`) for human operators + stdio JSON-RPC MCP server (`wikicraft-mcp`) with 16 tools for autonomous AI coding agents.
-- **Fleet Bus Integration:** Automatically publishes `adr.accepted` bus signals across fleet applications via `craft-biz` bus.
+- **Dual Surface:** Native desktop app (`wikicraft`) for human operators + stdio & HTTP JSON-RPC MCP server (`wikicraft-mcp`) with 17 tools for autonomous AI coding agents.
+- **Static Site Export (`site-export`):** Generates standalone static HTML websites ready for GitHub Pages (`gh-pages`) with responsive WCAG 7:1 dark/light stylesheet, client search filter, and ADR matrix.
+- **Dual Transport Gateway (HTTP + MCP on port 11261):** Concurrent HTTP server with `/health`, `/api/status`, `/api/pages`, `/api/adrs`, `/api/search?q=...`, and `/mcp` endpoints.
+- **Live Filesystem Watcher:** Background directory watcher (`wikicraft-mcp watch <dir>`) auto-ingesting modified and newly created markdown files in real-time.
+- **Anthropic `.mcpb` Bundle:** Fully validated `@anthropic-ai/mcpb` distribution package with automated release pipeline (`scripts/release.ps1`).
+- **Fleet Bus Integration:** Automatically publishes `adr.accepted` and `wiki.page.updated` bus signals across fleet applications via `craft-biz` bus.
 
 ## Quick Start
 
@@ -41,6 +45,15 @@ wikicraft-mcp gh-pull sandraschi/wikicraft
 wikicraft-mcp gh-status sandraschi/wikicraft
 wikicraft-mcp gh-push sandraschi/wikicraft --message "docs: sync from WikiCraft"
 
+# Export standalone static HTML website
+wikicraft-mcp site-export ./dist/site
+
+# Run concurrent HTTP/MCP server on port 11261
+wikicraft-mcp serve --port 11261
+
+# Watch a directory for real-time markdown updates
+wikicraft-mcp watch d:/Dev/repos/mcp-central-docs/standards
+
 # Save or update a markdown page
 wikicraft-mcp page-save architecture/db "Database Architecture" "We use SQLite WAL with [[architecture/overview]]."
 
@@ -57,7 +70,7 @@ wikicraft-mcp tree-import d:/Dev/repos/mcp-central-docs/standards
 wikicraft-mcp mcp
 ```
 
-## MCP Server Tools (16)
+## MCP Server Tools (17)
 
 When launched with `wikicraft-mcp mcp`, the server exposes 16 tools over JSON-RPC stdio:
 

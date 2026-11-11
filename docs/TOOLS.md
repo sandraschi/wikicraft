@@ -1,6 +1,8 @@
-# WikiCraft MCP Tools Reference
+# WikiCraft MCP & Transport Reference
 
-WikiCraft exposes 16 Model Context Protocol (MCP) tools over stdio JSON-RPC.
+WikiCraft exposes 17 Model Context Protocol (MCP) tools over stdio JSON-RPC, HTTP JSON-RPC gateway on port 11261, and CLI.
+
+## MCP Tools (17 Tools)
 
 | Tool | Parameters | Description |
 |---|---|---|
@@ -19,4 +21,35 @@ WikiCraft exposes 16 Model Context Protocol (MCP) tools over stdio JSON-RPC.
 | `wiki_gh_pull` | `repo` | Clones or pulls a GitHub repository wiki (`owner/repo`) and ingests pages into SQLite. |
 | `wiki_gh_push` | `repo`, `message` (opt) | Exports pages and ADRs, auto-generates `_Sidebar.md`, and pushes via git to GitHub Wiki. |
 | `wiki_gh_status` | `repo` | Inspects local clone state, remote wiki URL, and last commit for a GitHub Wiki. |
+| `wiki_site_export` | `out_dir` | Exports documentation and ADRs to a standalone static HTML website ready for GitHub Pages (`gh-pages`). |
 | `wiki_inbox_drain` | none | Acknowledges and clears pending signals in the wiki event bus inbox. |
+
+## Dual Transport (HTTP + MCP on port 11261)
+
+Run the server with:
+```powershell
+wikicraft-mcp serve --port 11261
+```
+
+Available HTTP endpoints:
+- `GET /health`: Health probe reporting status, app name, version, and active port.
+- `GET /api/status`: Store statistics (page count, ADR count, link count).
+- `GET /api/pages`: List all documentation pages.
+- `GET /api/adrs`: List all Architecture Decision Records.
+- `GET /api/search?q=<query>`: SQLite FTS5 full-text search.
+- `POST /mcp`: JSON-RPC 2.0 MCP endpoint (`initialize`, `tools/list`, `tools/call`, `ping`).
+- CORS headers (`Access-Control-Allow-Origin: *`) are active for all endpoints.
+
+## Live Filesystem Watcher
+
+Monitor a directory for real-time changes and auto-ingest modified or new markdown files:
+```powershell
+wikicraft-mcp watch "D:\Dev\repos\mcp-central-docs\standards" --poll-interval-secs 2
+```
+
+## Static Site Export
+
+Export the entire knowledge store to a standalone static HTML website with responsive high-contrast styling and instant client-side search:
+```powershell
+wikicraft-mcp site-export "./dist/site"
+```
