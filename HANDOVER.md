@@ -1,7 +1,7 @@
 # WikiCraft - Handover Document
 
 **Last Updated**: 2026-11-11  
-**Current State**: v0.1.0 Tier 1 + L3 Desktop Workstation (Store + Core + CLI + MCP + egui 0.37 App operational)  
+**Current State**: v0.2.0 Tier 1 + L3 Desktop Workstation (Store + Core + CLI + MCP + egui 0.37 App operational)  
 **Primary Artifact**: [sandraschi/wikicraft](https://github.com/sandraschi/wikicraft) | `D:\Dev\repos\wikicraft`  
 
 ---
@@ -37,7 +37,7 @@ WikiCraft replaces cloud-hosted team wikis and knowledge bases for sovereign eng
   - Default repository auto-resolution to `sandraschi/<repo>`.
 - **Fleet Packaging & Release**:
   - Aligned binary names per `RELEASE_FACTORY.md`: `wikicraft.exe` (desktop workstation) and `wikicraft-mcp.exe` (CLI/server).
-  - Shipped and published release `v0.1.0` (alpha) with plain unversioned executables, craft-launcher portable zip, and `SHA256SUMS.txt`.
+  - Shipped and published release `v0.1.0` and `v0.2.0` (GitHub Wiki sync, 16 MCP tools) with plain unversioned executables, craft-launcher portable zip, and `SHA256SUMS.txt`.
 - **Quality & Standards**:
   - Zero compiler warnings, zero clippy warnings across workspace with `#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]`.
   - All unit tests passing, automated smoke check `--smoke` operational.
