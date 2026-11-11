@@ -1,19 +1,20 @@
 # wikicraft
 
-> Local-first Markdown documentation, SQLite FTS5 full-text search, and Architecture Decision Record (ADR) lifecycle studio.
+> Local-first Markdown documentation, SQLite FTS5 full-text search, GitHub Wiki synchronizer, and Architecture Decision Record (ADR) lifecycle studio.
 
-Part of the **Back-Office Craft Suite** (`craft-biz`). Replaces Confluence (\$60/seat/mo), Notion Team (\$100/seat/mo), and Slite with zero-cloud latency, complete privacy, and air-gapped reliability.
+Part of the **Back-Office Craft Suite** (`craft-biz`). Replaces Confluence (\$60/seat/mo), Notion Team (\$100/seat/mo), and Slite with zero-cloud latency, complete privacy, bidirectional GitHub Wiki synchronization, and air-gapped reliability.
 
 ## Features
 
 - **Local-First SQLite WAL:** Zero-cloud latency, ACID reliability, embedded single-file storage in `%LOCALAPPDATA%\wikicraft\wikicraft.db`.
 - **SQLite FTS5 Full-Text Search:** Instant sub-millisecond search across thousands of markdown documents with highlighted snippets.
+- **GitHub Wiki Bidirectional Sync:** Direct clone, pull, and push integration with any `https://github.com/<owner>/<repo>.wiki.git` repository, with automated `_Sidebar.md` navigation generation and `Home.md` mapping.
 - **ADR Lifecycle State Machine:** Formal governance of architectural decisions across `proposed`, `accepted`, `rejected`, and `superseded` states.
 - **Wiki-Link Topology Graph:** Parses `[[page-slug]]` and `[[target|label]]` syntax; tracks bidirectional outgoing edges and incoming backlinks.
 - **High-Contrast Desktop Workstation (`egui 0.37`):** Built with `craft-biz-ui` high-contrast tokens (WCAG 7:1 compliant), Dark/Light theme switching, structured markdown reader, live page editor, and sidebar search filter.
 - **1-Click Fleet Documentation Ingestion:** Ingest curated `mcp-central-docs` sections (`Standards`, `Patterns`, `Operations`, `Troubleshooting`, `Architecture`) or any local folder into SQLite WAL + FTS5 in seconds.
 - **Bootstrap Seed:** One-click `🌱 Seed Demo` button to populate sample architecture docs and ADRs instantly.
-- **Dual Surface:** Native desktop app for human operators + stdio JSON-RPC MCP server with 13 tools for autonomous AI coding agents.
+- **Dual Surface:** Native desktop app (`wikicraft`) for human operators + stdio JSON-RPC MCP server (`wikicraft-mcp`) with 16 tools for autonomous AI coding agents.
 - **Fleet Bus Integration:** Automatically publishes `adr.accepted` bus signals across fleet applications via `craft-biz` bus.
 
 ## Quick Start
@@ -35,6 +36,11 @@ wikicraft-mcp seed-demo
 # Check status and document counts
 wikicraft-mcp status
 
+# Synchronize with a GitHub repository wiki
+wikicraft-mcp gh-pull sandraschi/wikicraft
+wikicraft-mcp gh-status sandraschi/wikicraft
+wikicraft-mcp gh-push sandraschi/wikicraft --message "docs: sync from WikiCraft"
+
 # Save or update a markdown page
 wikicraft-mcp page-save architecture/db "Database Architecture" "We use SQLite WAL with [[architecture/overview]]."
 
@@ -51,9 +57,9 @@ wikicraft-mcp tree-import d:/Dev/repos/mcp-central-docs/standards
 wikicraft-mcp mcp
 ```
 
-## MCP Server Tools (13)
+## MCP Server Tools (16)
 
-When launched with `wikicraft-mcp mcp`, the server exposes 13 tools over JSON-RPC stdio:
+When launched with `wikicraft-mcp mcp`, the server exposes 16 tools over JSON-RPC stdio:
 
 | Tool | Parameters | Description |
 |---|---|---|
@@ -69,4 +75,7 @@ When launched with `wikicraft-mcp mcp`, the server exposes 13 tools over JSON-RP
 | `wiki_adr_list` | none | Lists all Architecture Decision Records. |
 | `wiki_tree_import` | `path` | Recursively indexes a folder of markdown files into SQLite WAL + FTS5. |
 | `wiki_seed_demo` | none | Seeds the database with initial architecture docs, cross-links, and sample ADRs. |
+| `wiki_gh_pull` | `repo` | Clones or pulls a GitHub repository wiki (`owner/repo`) and ingests pages into SQLite. |
+| `wiki_gh_push` | `repo`, `message` (opt) | Exports pages and ADRs, auto-generates `_Sidebar.md`, and pushes via git to GitHub Wiki. |
+| `wiki_gh_status` | `repo` | Inspects local clone state, remote wiki URL, and last commit for a GitHub Wiki. |
 | `wiki_inbox_drain` | none | Acknowledges and clears pending signals in the wiki event bus inbox. |

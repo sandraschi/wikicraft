@@ -40,6 +40,10 @@ struct App {
     // Import drawer state
     show_import_bar: bool,
     custom_import_path: String,
+    // GitHub Wiki drawer state
+    show_gh_wiki_bar: bool,
+    gh_wiki_repo: String,
+    gh_wiki_status_info: Option<String>,
 }
 
 impl App {
@@ -70,6 +74,9 @@ impl App {
             edit_content: String::new(),
             show_import_bar: false,
             custom_import_path: String::new(),
+            show_gh_wiki_bar: false,
+            gh_wiki_repo: "sandraschi/wikicraft".to_string(),
+            gh_wiki_status_info: None,
         };
         app.reload();
         app
@@ -184,6 +191,96 @@ impl App {
             }
         }
     }
+
+    fn pull_gh_wiki(&mut self) {
+        let repo = self.gh_wiki_repo.trim().to_string();
+        if repo.is_empty() {
+            self.status_msg =
+                "Please enter a GitHub repository name (e.g. sandraschi/wikicraft)".to_string();
+            return;
+        }
+        self.status_msg = format!("Pulling GitHub wiki for {repo}...");
+        match dispatch(
+            &Command::GhWikiPull {
+                repo: repo.clone(),
+            },
+            &mut self.ctx,
+        ) {
+            Ok(res) => {
+                let count = res
+                    .get("imported_pages")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                self.reload();
+                self.status_msg = format!("🌐 Successfully pulled {count} pages from {repo} wiki");
+            }
+            Err(e) => {
+                self.status_msg = format!("GH Wiki Pull error: {e}");
+            }
+        }
+    }
+
+    fn push_gh_wiki(&mut self) {
+        let repo = self.gh_wiki_repo.trim().to_string();
+        if repo.is_empty() {
+            self.status_msg =
+                "Please enter a GitHub repository name (e.g. sandraschi/wikicraft)".to_string();
+            return;
+        }
+        self.status_msg = format!("Exporting and pushing wiki for {repo}...");
+        match dispatch(
+            &Command::GhWikiPush {
+                repo: repo.clone(),
+                message: None,
+            },
+            &mut self.ctx,
+        ) {
+            Ok(res) => {
+                let pushed = res.get("pushed").and_then(|v| v.as_bool()).unwrap_or(false);
+                let count = res
+                    .get("exported_pages")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                let info = res.get("push_info").and_then(|v| v.as_str()).unwrap_or("");
+                if pushed {
+                    self.status_msg =
+                        format!("🌐 Successfully pushed {count} pages to {repo} wiki ({info})");
+                } else {
+                    self.status_msg =
+                        format!("⚠️ Exported {count} pages locally to wiki, but {info}");
+                }
+            }
+            Err(e) => {
+                self.status_msg = format!("GH Wiki Push error: {e}");
+            }
+        }
+    }
+
+    fn check_gh_wiki_status(&mut self) {
+        let repo = self.gh_wiki_repo.trim().to_string();
+        match dispatch(&Command::GhWikiStatus { repo }, &mut self.ctx) {
+            Ok(res) => {
+                let init = res
+                    .get("initialized")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let last = res
+                    .get("last_commit")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let url = res
+                    .get("remote_url")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                self.gh_wiki_status_info = Some(format!(
+                    "Remote: {url} | Initialized: {init} | Last commit: {last}"
+                ));
+            }
+            Err(e) => {
+                self.gh_wiki_status_info = Some(format!("Status error: {e}"));
+            }
+        }
+    }
 }
 
 fn locate_mcd_root() -> Option<PathBuf> {
@@ -266,6 +363,19 @@ impl eframe::App for App {
                 .clicked()
             {
                 self.show_import_bar = !self.show_import_bar;
+            }
+
+            let gh_text = if self.show_gh_wiki_bar {
+                "🌐 GH Wiki ▲"
+            } else {
+                "🌐 GH Wiki ▼"
+            };
+            if ui
+                .button(gh_text)
+                .on_hover_text("Open GitHub Wiki synchronization drawer")
+                .clicked()
+            {
+                self.show_gh_wiki_bar = !self.show_gh_wiki_bar;
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -372,6 +482,55 @@ impl eframe::App for App {
                         {
                             let p = PathBuf::from(self.custom_import_path.trim());
                             self.import_path(&p, "Custom Folder");
+                        }
+                    });
+                });
+        }
+
+        // Expandable GitHub Wiki Drawer
+        if self.show_gh_wiki_bar {
+            ui.add_space(4.0);
+            egui::Frame::group(ui.style())
+                .fill(t.sunken)
+                .stroke(Stroke::new(1.0, t.border))
+                .corner_radius(CornerRadius::same(6))
+                .show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(RichText::new("GitHub Wiki Sync:").strong().color(t.text));
+                        ui.label(RichText::new("Repo:").color(t.text_weak));
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.gh_wiki_repo)
+                                .hint_text("owner/repo or repo")
+                                .desired_width(180.0),
+                        );
+
+                        if ui
+                            .button("⬇️ Pull Wiki")
+                            .on_hover_text("Clone or pull the GitHub wiki repository and ingest its pages")
+                            .clicked()
+                        {
+                            self.pull_gh_wiki();
+                        }
+
+                        if ui
+                            .button("⬆️ Push Wiki")
+                            .on_hover_text("Export pages, generate _Sidebar.md navigation, and push to GitHub")
+                            .clicked()
+                        {
+                            self.push_gh_wiki();
+                        }
+
+                        if ui
+                            .button("ℹ️ Status")
+                            .on_hover_text("Inspect local wiki clone state and last git commit")
+                            .clicked()
+                        {
+                            self.check_gh_wiki_status();
+                        }
+
+                        if let Some(ref info) = self.gh_wiki_status_info {
+                            ui.separator();
+                            ui.label(RichText::new(info).color(t.accent));
                         }
                     });
                 });

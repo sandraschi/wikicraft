@@ -70,6 +70,24 @@ enum Cmd {
     TreeImport { path: PathBuf },
     /// Seed the wiki with sample documentation and ADRs.
     SeedDemo,
+    /// Pull and ingest a GitHub repository wiki.
+    GhPull {
+        /// Repository name (e.g. 'sandraschi/wikicraft' or 'wikicraft')
+        repo: String,
+    },
+    /// Export and push wiki pages to a GitHub repository wiki.
+    GhPush {
+        /// Repository name (e.g. 'sandraschi/wikicraft' or 'wikicraft')
+        repo: String,
+        /// Optional commit message
+        #[arg(short, long)]
+        message: Option<String>,
+    },
+    /// Inspect local clone state and remote commit for a GitHub repository wiki.
+    GhStatus {
+        /// Repository name (e.g. 'sandraschi/wikicraft' or 'wikicraft')
+        repo: String,
+    },
     /// Drain incoming bus signals.
     InboxDrain,
     /// Print tool specifications.
@@ -205,6 +223,9 @@ fn main() -> ExitCode {
         Cmd::AdrList => Command::AdrList,
         Cmd::TreeImport { path } => Command::TreeImport { path },
         Cmd::SeedDemo => Command::SeedDemo,
+        Cmd::GhPull { repo } => Command::GhWikiPull { repo },
+        Cmd::GhPush { repo, message } => Command::GhWikiPush { repo, message },
+        Cmd::GhStatus { repo } => Command::GhWikiStatus { repo },
         Cmd::InboxDrain => Command::InboxDrain,
     };
 

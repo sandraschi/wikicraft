@@ -17,6 +17,7 @@ target\release\wikicraft.exe
 - **Page Editor:** Toggle `✏️ Edit Page` to modify titles and markdown content with `💾 Save`.
 - **🌱 Seed Demo:** Bootstrap sample architecture docs, wiki links, and ADRs with a single click.
 - **📂 Ingest Docs:** 1-click batch ingestion of `mcp-central-docs` sections (`Standards`, `Patterns`, `Operations`, `Troubleshooting`, `Architecture`) or any custom markdown directory.
+- **🌐 GH Wiki Sync:** 1-click bidirectional synchronization drawer for any `sandraschi/<repo>` GitHub Wiki (Pull, Push with auto-generated `_Sidebar.md`, Status).
 - **🏛️ ADR Matrix:** Filterable table tracking architectural decisions across `proposed`, `accepted`, `rejected`, and `superseded` states.
 - **🕸️ Wiki Graph:** Interactive topology view mapping outgoing links and incoming backlinks.
 
@@ -43,6 +44,11 @@ wikicraft-mcp adr-list
 
 # Directory Import & Ingestion
 wikicraft-mcp tree-import <directory-path>
+
+# GitHub Wiki Synchronization
+wikicraft-mcp gh-pull <repo>
+wikicraft-mcp gh-push <repo> [--message <msg>]
+wikicraft-mcp gh-status <repo>
 
 # Bootstrap Demo Data
 wikicraft-mcp seed-demo

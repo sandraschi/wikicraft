@@ -1,6 +1,6 @@
 # WikiCraft MCP Tools Reference
 
-WikiCraft exposes 13 Model Context Protocol (MCP) tools over stdio JSON-RPC.
+WikiCraft exposes 16 Model Context Protocol (MCP) tools over stdio JSON-RPC.
 
 | Tool | Parameters | Description |
 |---|---|---|
@@ -16,4 +16,7 @@ WikiCraft exposes 13 Model Context Protocol (MCP) tools over stdio JSON-RPC.
 | `wiki_adr_list` | none | Lists all Architecture Decision Records. |
 | `wiki_tree_import` | `path` | Recursively indexes a folder of markdown files into SQLite WAL + FTS5. |
 | `wiki_seed_demo` | none | Seeds the database with initial architecture docs, cross-links, and sample ADRs. |
+| `wiki_gh_pull` | `repo` | Clones or pulls a GitHub repository wiki (`owner/repo`) and ingests pages into SQLite. |
+| `wiki_gh_push` | `repo`, `message` (opt) | Exports pages and ADRs, auto-generates `_Sidebar.md`, and pushes via git to GitHub Wiki. |
+| `wiki_gh_status` | `repo` | Inspects local clone state, remote wiki URL, and last commit for a GitHub Wiki. |
 | `wiki_inbox_drain` | none | Acknowledges and clears pending signals in the wiki event bus inbox. |

@@ -57,6 +57,16 @@ pub enum Command {
         path: PathBuf,
     },
     SeedDemo,
+    GhWikiPull {
+        repo: String,
+    },
+    GhWikiPush {
+        repo: String,
+        message: Option<String>,
+    },
+    GhWikiStatus {
+        repo: String,
+    },
     InboxDrain,
 }
 
@@ -116,6 +126,16 @@ impl Command {
                 }
             }
             "wiki_seed_demo" => Command::SeedDemo,
+            "wiki_gh_pull" => Command::GhWikiPull {
+                repo: s(a, "repo")?.to_string(),
+            },
+            "wiki_gh_push" => Command::GhWikiPush {
+                repo: s(a, "repo")?.to_string(),
+                message: opt_s(a, "message"),
+            },
+            "wiki_gh_status" => Command::GhWikiStatus {
+                repo: s(a, "repo")?.to_string(),
+            },
             "wiki_inbox_drain" => Command::InboxDrain,
             other => return Err(format!("unknown wikicraft tool: {other}")),
         })
@@ -165,6 +185,233 @@ fn collect_markdown_files(dir: &Path, out: &mut Vec<PathBuf>) {
             }
         }
     }
+}
+
+/// Normalize repo string to `owner/repo` (defaults to `sandraschi/<repo>` if no slash provided).
+pub fn normalize_gh_repo(repo: &str) -> String {
+    let trimmed = repo.trim();
+    if trimmed.contains('/') {
+        trimmed.to_string()
+    } else {
+        format!("sandraschi/{trimmed}")
+    }
+}
+
+/// Local directory where the GitHub Wiki git repository is cached.
+pub fn gh_wiki_local_dir(repo: &str) -> PathBuf {
+    let full = normalize_gh_repo(repo);
+    let clean = full.replace(['/', '\\'], "_");
+    let base = std::env::var("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("."));
+    base.join("wikicraft").join("wikis").join(clean)
+}
+
+/// Remote git clone URL for a GitHub Wiki repository.
+pub fn gh_wiki_remote_url(repo: &str) -> String {
+    let full = normalize_gh_repo(repo);
+    format!("https://github.com/{full}.wiki.git")
+}
+
+/// Pull/clone a GitHub Wiki repository and ingest its markdown pages into SQLite FTS5.
+pub fn gh_wiki_pull(repo: &str, ctx: &mut Ctx) -> Result<Value, String> {
+    let full_repo = normalize_gh_repo(repo);
+    let dir = gh_wiki_local_dir(&full_repo);
+    let remote_url = gh_wiki_remote_url(&full_repo);
+
+    if let Some(parent) = dir.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    let git_dir = dir.join(".git");
+    if git_dir.exists() {
+        let out = std::process::Command::new("git")
+            .args(["-C", &dir.to_string_lossy(), "pull", "--rebase"])
+            .output()
+            .map_err(|e| format!("failed to run git pull: {e}"))?;
+        if !out.status.success() {
+            let err = String::from_utf8_lossy(&out.stderr);
+            return Err(format!("git pull failed: {err}"));
+        }
+    } else {
+        let out = std::process::Command::new("git")
+            .args(["clone", &remote_url, &dir.to_string_lossy()])
+            .output()
+            .map_err(|e| format!("failed to run git clone: {e}"))?;
+        if !out.status.success() {
+            let err = String::from_utf8_lossy(&out.stderr);
+            return Err(format!(
+                "git clone failed for {remote_url}: {err}. (Note: GitHub creates the wiki git backend when the first page ('Home') is created via the GitHub web UI)."
+            ));
+        }
+    }
+
+    let mut files = Vec::new();
+    collect_markdown_files(&dir, &mut files);
+
+    let mut imported = 0usize;
+    for f in &files {
+        if let Ok(content) = std::fs::read_to_string(f) {
+            let file_stem = f.file_stem().and_then(|s| s.to_str()).unwrap_or("page");
+            let title = content
+                .lines()
+                .find(|l| l.trim().starts_with("# "))
+                .map(|l| l.trim().trim_start_matches("# ").trim().to_string())
+                .unwrap_or_else(|| file_stem.to_string());
+
+            if ctx.store.save_page(file_stem, &title, &content).is_ok() {
+                let links = extract_wiki_links(&content);
+                let _ = ctx.store.save_links(file_stem, &links);
+                imported += 1;
+            }
+        }
+    }
+
+    Ok(json!({
+        "repo": full_repo,
+        "pulled": true,
+        "scanned_files": files.len(),
+        "imported_pages": imported,
+        "wiki_dir": dir.to_string_lossy()
+    }))
+}
+
+/// Export stored pages and ADRs to a GitHub Wiki git repository, generating `_Sidebar.md` and pushing to GitHub.
+pub fn gh_wiki_push(repo: &str, custom_msg: Option<&str>, ctx: &mut Ctx) -> Result<Value, String> {
+    let full_repo = normalize_gh_repo(repo);
+    let dir = gh_wiki_local_dir(&full_repo);
+    let remote_url = gh_wiki_remote_url(&full_repo);
+
+    let _ = std::fs::create_dir_all(&dir);
+
+    let git_dir = dir.join(".git");
+    if !git_dir.exists() {
+        let init_out = std::process::Command::new("git")
+            .args(["-C", &dir.to_string_lossy(), "init", "-b", "master"])
+            .output()
+            .map_err(|e| format!("failed to git init: {e}"))?;
+        if !init_out.status.success() {
+            let err = String::from_utf8_lossy(&init_out.stderr);
+            return Err(format!("git init failed: {err}"));
+        }
+
+        let _ = std::process::Command::new("git")
+            .args(["-C", &dir.to_string_lossy(), "remote", "add", "origin", &remote_url])
+            .output();
+    }
+
+    let pages = ctx.store.list_pages().map_err(|e| e.to_string())?;
+    let adrs = ctx.store.list_adrs().map_err(|e| e.to_string())?;
+
+    let mut exported_count = 0usize;
+    let mut sidebar_links = Vec::new();
+
+    for p_summary in &pages {
+        if let Ok(full_page) = ctx.store.get_page(&p_summary.id) {
+            let safe_filename = full_page.id.replace(['/', '\\'], "-");
+            let file_path = dir.join(format!("{safe_filename}.md"));
+            if std::fs::write(&file_path, &full_page.content).is_ok() {
+                exported_count += 1;
+                sidebar_links.push(format!("- [[{}|{}]]", safe_filename, full_page.title));
+            }
+        }
+    }
+
+    // Auto-generate _Sidebar.md for GitHub Wiki navigation
+    let mut sidebar_content = String::from("### Documentation\n");
+    for link in &sidebar_links {
+        sidebar_content.push_str(link);
+        sidebar_content.push('\n');
+    }
+    if !adrs.is_empty() {
+        sidebar_content.push_str("\n### Architecture Decisions\n");
+        for a in &adrs {
+            sidebar_content.push_str(&format!("- [[{}|{} ({})]]\n", a.id, a.title, a.status));
+            let adr_path = dir.join(format!("{}.md", a.id));
+            let adr_body = format!(
+                "# {}\n\n**Status**: `{}`\n**Updated**: {}\n\n## Context\n{}\n\n## Decision\n{}\n\n## Consequences\n{}\n",
+                a.title, a.status, a.updated_at, a.context, a.decision, a.consequences
+            );
+            let _ = std::fs::write(&adr_path, adr_body);
+        }
+    }
+    let _ = std::fs::write(dir.join("_Sidebar.md"), sidebar_content);
+
+    // Auto-generate _Footer.md
+    let footer_content = "---\n*Maintained with [WikiCraft](https://github.com/sandraschi/wikicraft) — Local-first documentation studio*\n";
+    let _ = std::fs::write(dir.join("_Footer.md"), footer_content);
+
+    // Git stage & commit
+    let _ = std::process::Command::new("git")
+        .args(["-C", &dir.to_string_lossy(), "add", "-A"])
+        .output();
+
+    let msg = custom_msg.unwrap_or("docs: sync wiki pages from WikiCraft");
+    let _ = std::process::Command::new("git")
+        .args(["-C", &dir.to_string_lossy(), "commit", "-m", msg])
+        .output();
+
+    // Push to remote (try master, fallback main)
+    let push_out = std::process::Command::new("git")
+        .args(["-C", &dir.to_string_lossy(), "push", "-u", "origin", "master"])
+        .output()
+        .map_err(|e| format!("failed to run git push: {e}"))?;
+
+    let (pushed, push_info) = if push_out.status.success() {
+        (true, "pushed to origin/master".to_string())
+    } else {
+        let push_main = std::process::Command::new("git")
+            .args(["-C", &dir.to_string_lossy(), "push", "-u", "origin", "main"])
+            .output();
+        if let Ok(ref pm) = push_main {
+            if pm.status.success() {
+                (true, "pushed to origin/main".to_string())
+            } else {
+                let stderr = String::from_utf8_lossy(&push_out.stderr);
+                (false, format!("push failed: {stderr}"))
+            }
+        } else {
+            let stderr = String::from_utf8_lossy(&push_out.stderr);
+            (false, format!("push failed: {stderr}"))
+        }
+    };
+
+    Ok(json!({
+        "repo": full_repo,
+        "pushed": pushed,
+        "push_info": push_info,
+        "exported_pages": exported_count,
+        "adrs_exported": adrs.len(),
+        "wiki_dir": dir.to_string_lossy()
+    }))
+}
+
+/// Inspect local and remote status of a GitHub Wiki.
+pub fn gh_wiki_status(repo: &str) -> Result<Value, String> {
+    let full_repo = normalize_gh_repo(repo);
+    let dir = gh_wiki_local_dir(&full_repo);
+    let remote_url = gh_wiki_remote_url(&full_repo);
+    let exists = dir.join(".git").exists();
+
+    let mut commit_info = "not initialized".to_string();
+    if exists {
+        if let Ok(out) = std::process::Command::new("git")
+            .args(["-C", &dir.to_string_lossy(), "log", "-1", "--oneline"])
+            .output()
+        {
+            if out.status.success() {
+                commit_info = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            }
+        }
+    }
+
+    Ok(json!({
+        "repo": full_repo,
+        "remote_url": remote_url,
+        "local_dir": dir.to_string_lossy(),
+        "initialized": exists,
+        "last_commit": commit_info
+    }))
 }
 
 pub fn dispatch(cmd: &Command, ctx: &mut Ctx) -> Result<Value, String> {
@@ -391,6 +638,9 @@ pub fn dispatch(cmd: &Command, ctx: &mut Ctx) -> Result<Value, String> {
                 "adrs_created": adrs_created
             }))
         }
+        Command::GhWikiPull { repo } => gh_wiki_pull(repo, ctx),
+        Command::GhWikiPush { repo, message } => gh_wiki_push(repo, message.as_deref(), ctx),
+        Command::GhWikiStatus { repo } => gh_wiki_status(repo),
         Command::InboxDrain => {
             let pending = ctx.bus.pending("wikicraft").map_err(|e| e.to_string())?;
             let mut applied = 0usize;
@@ -502,6 +752,31 @@ pub fn tools() -> Vec<Value> {
             "Seed the wiki with sample architecture documentation, cross-links, and ADRs",
             json!({}),
             &[],
+        ),
+        tool(
+            "wiki_gh_pull",
+            "Clone or pull a GitHub repository wiki and ingest all markdown pages into the SQLite index",
+            json!({
+                "repo": { "type": "string", "description": "GitHub repository name, e.g. 'sandraschi/wikicraft' or 'wikicraft'" }
+            }),
+            &["repo"],
+        ),
+        tool(
+            "wiki_gh_push",
+            "Export all wiki pages and ADRs to a GitHub Wiki repository, generate _Sidebar.md navigation, and push via git",
+            json!({
+                "repo": { "type": "string", "description": "GitHub repository name, e.g. 'sandraschi/wikicraft' or 'wikicraft'" },
+                "message": { "type": "string", "description": "Optional git commit message" }
+            }),
+            &["repo"],
+        ),
+        tool(
+            "wiki_gh_status",
+            "Check local clone state and remote commit information for a GitHub Wiki repository",
+            json!({
+                "repo": { "type": "string", "description": "GitHub repository name, e.g. 'sandraschi/wikicraft' or 'wikicraft'" }
+            }),
+            &["repo"],
         ),
         tool(
             "wiki_inbox_drain",
