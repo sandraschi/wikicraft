@@ -1,10 +1,12 @@
 # WikiCraft Quick Reference
 
-## Desktop Workstation (`wikicraft-app`)
+## Desktop Workstation (`wikicraft.exe`)
 
 Launch via:
 ```powershell
 .\start.ps1        # or .\start.bat
+# or directly:
+target\release\wikicraft.exe
 ```
 
 ### Key UI Features
@@ -20,37 +22,37 @@ Launch via:
 
 ---
 
-## CLI & MCP Server (`wikicraft`)
+## CLI & MCP Server (`wikicraft-mcp.exe`)
 
 ```bash
 # General status and counts
-wikicraft status
+wikicraft-mcp status
 
 # Markdown Pages
-wikicraft page-save <id> <title> <content>
-wikicraft page-get <id>
-wikicraft page-list
-wikicraft page-delete <id>
-wikicraft search <query>
-wikicraft backlinks <id>
+wikicraft-mcp page-save <id> <title> <content>
+wikicraft-mcp page-get <id>
+wikicraft-mcp page-list
+wikicraft-mcp page-delete <id>
+wikicraft-mcp search <query>
+wikicraft-mcp backlinks <id>
 
 # Architecture Decision Records (ADRs)
-wikicraft adr-save <id> <title> [status] [context] [decision] [consequences] [--superseded-by <id>]
-wikicraft adr-get <id>
-wikicraft adr-list
+wikicraft-mcp adr-save <id> <title> [status] [context] [decision] [consequences] [--superseded-by <id>]
+wikicraft-mcp adr-get <id>
+wikicraft-mcp adr-list
 
 # Directory Import & Ingestion
-wikicraft tree-import <directory-path>
+wikicraft-mcp tree-import <directory-path>
 
 # Bootstrap Demo Data
-wikicraft seed-demo
+wikicraft-mcp seed-demo
 
 # Event Bus Inbox
-wikicraft inbox-drain
+wikicraft-mcp inbox-drain
 
 # Run as Stdio MCP Server for AI Coding Agents
-wikicraft mcp
+wikicraft-mcp mcp
 
 # Inspect Tool Specifications
-wikicraft tools [--markdown]
+wikicraft-mcp tools [--markdown]
 ```

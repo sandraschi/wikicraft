@@ -808,7 +808,7 @@ fn default_db() -> PathBuf {
 fn main() -> eframe::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "--smoke") {
-        println!("smoke: ok (wikicraft-app)");
+        println!("smoke: ok (wikicraft)");
         return Ok(());
     }
 

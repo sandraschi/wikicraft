@@ -12,8 +12,9 @@ param(
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $AppCrate = "wikicraft-app"
-$AppBin = "wikicraft-app"
+$AppBin = "wikicraft"
 $McpCrate = "wikicraft-mcp"
+$McpBin = "wikicraft-mcp"
 
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 if ($null -eq (Get-Command cargo -ErrorAction SilentlyContinue)) {

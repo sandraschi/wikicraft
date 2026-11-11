@@ -22,36 +22,38 @@ Part of the **Back-Office Craft Suite** (`craft-biz`). Replaces Confluence (\$60
 
 ```powershell
 .\start.ps1        # or .\start.bat
+# or directly:
+target\release\wikicraft.exe
 ```
 
-### 2. Command Line Interface (CLI)
+### 2. Command Line Interface (CLI) & MCP Server
 
 ```bash
 # Seed initial demo documentation and ADRs
-wikicraft seed-demo
+wikicraft-mcp seed-demo
 
 # Check status and document counts
-wikicraft status
+wikicraft-mcp status
 
 # Save or update a markdown page
-wikicraft page-save architecture/db "Database Architecture" "We use SQLite WAL with [[architecture/overview]]."
+wikicraft-mcp page-save architecture/db "Database Architecture" "We use SQLite WAL with [[architecture/overview]]."
 
 # Search documentation with highlighted snippets
-wikicraft search "SQLite"
+wikicraft-mcp search "SQLite"
 
 # Propose an Architecture Decision Record (ADR)
-wikicraft adr-save ADR-001 "Adopt Rust 2021" proposed "Need memory safety" "Adopt Rust across fleet" "Zero runtime overhead"
+wikicraft-mcp adr-save ADR-001 "Adopt Rust 2021" proposed "Need memory safety" "Adopt Rust across fleet" "Zero runtime overhead"
 
 # Import an entire folder of markdown documents
-wikicraft tree-import d:/Dev/repos/mcp-central-docs/standards
+wikicraft-mcp tree-import d:/Dev/repos/mcp-central-docs/standards
 
 # Launch MCP server on stdio for AI coding agents
-wikicraft mcp
+wikicraft-mcp mcp
 ```
 
 ## MCP Server Tools (13)
 
-When launched with `wikicraft mcp`, the server exposes 13 tools over JSON-RPC stdio:
+When launched with `wikicraft-mcp mcp`, the server exposes 13 tools over JSON-RPC stdio:
 
 | Tool | Parameters | Description |
 |---|---|---|

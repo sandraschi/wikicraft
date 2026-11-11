@@ -6,7 +6,7 @@ license.workspace = true
 authors.workspace = true
 
 [[bin]]
-name = "wikicraft"
+name = "wikicraft-mcp"
 path = "src/main.rs"
 
 [dependencies]
