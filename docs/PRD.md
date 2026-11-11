@@ -19,3 +19,21 @@
 
 - **Replaces:** Confluence (\$60/seat/mo), Notion Team (\$100/seat/mo), Slite (\$10/seat/mo).
 - **Cost Reduction:** 100% elimination of recurring cloud subscription fees, zero latency, and guaranteed availability during network partitioning or offline field work.
+
+## 4. UI/UX Architecture & Menu Bar Standard
+
+In accordance with [`CRAFT_MENU_BAR_STANDARD.md`](../../mcp-central-docs/standards/rust-artcraft/CRAFT_MENU_BAR_STANDARD.md):
+- **Pattern 2 (Viewport-Centric Craft Workstation):** Persistent markdown reading viewport and split-pane live editor with document tree navigation. Top quick button row acts as accelerators into the `View` menu. To add a new wiki view or graph visualizer:
+  1. Register a visibility toggle in the `View` or `Window` menu.
+  2. Add an entry in the sidebar Space / Page tree toolbox.
+  3. Wire the action directly into the universal `Command::dispatch` bus.
+- **Top Menu Bar Hierarchy:**
+  - `File`: New Page (`Ctrl+N`), Open Workspace / Doc Tree (`Ctrl+O`), Open Recent ▸, Save Page (`Ctrl+S`), Save As... (`Ctrl+Shift+S`), Export Markdown / HTML (`Ctrl+E`), Close (`Ctrl+W`), Quit (`Ctrl+Q`).
+  - `Edit`: Undo (`Ctrl+Z`), Redo (`Ctrl+Y`), Cut, Copy, Paste, Select All, Find / Replace (`Ctrl+F`), Preferences (`Ctrl+,`).
+  - `View`: Page Viewport, Split Live Editor, Backlinks / Graph Panel, ADR Registry, FTS Search Console, Theme (`Dark`/`Light`).
+  - `Insert`: Insert Wiki-Link (`[[link]]`), Add Code Block, Insert Table, Create ADR Record.
+  - `Modify`: Format Markdown, Rename Slug, Update ADR Status, Refactor Links.
+  - `Commands`: Run FTS Search, Ingest Local Markdown Tree, Sync GitHub Wiki, Reindex Backlinks, Emit ADR Event.
+  - `Window`: Reset Layout, Reading Viewport, Page Tree Drawer, Backlinks Dock.
+  - `Help` (Mandatory 5-Dialog Suite): `Command Palette...` (`Ctrl+K`), `Keyboard Shortcuts...` (`F1`), `Project Files & Docs...`, `Licenses & Notices...`, `About WikiCraft`.
+- **Behavioral Mechanics:** Smooth `switch_on_hover` between top-level menus, zero-unsafe immediate-mode rendering, and headless `--smoke` parity.
