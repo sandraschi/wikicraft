@@ -3796,7 +3796,7 @@ dependencies = [
 
 [[package]]
 name = "wikicraft-app"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "craft-biz",
  "craft-biz-ui",
@@ -3810,7 +3810,7 @@ dependencies = [
 
 [[package]]
 name = "wikicraft-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "craft-biz",
@@ -3823,7 +3823,7 @@ dependencies = [
 
 [[package]]
 name = "wikicraft-mcp"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clap",
  "craft-biz",
@@ -3835,7 +3835,7 @@ dependencies = [
 
 [[package]]
 name = "wikicraft-store"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono",
  "rusqlite",

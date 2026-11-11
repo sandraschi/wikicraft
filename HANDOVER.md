@@ -1,7 +1,7 @@
 # WikiCraft - Handover Document
 
 **Last Updated**: 2026-11-11  
-**Current State**: v0.2.0 Next Tier Complete (Store + Core + CLI + Dual Transport MCP [stdio + HTTP port 11261] + egui 0.37 Desktop Studio + Static Site Generator + Live Watcher + .mcpb bundle)  
+**Current State**: v0.3.0 Next Tier Suite Complete (Store + Core + CLI + Dual Transport MCP [stdio + HTTP port 11261] + egui 0.37 Desktop Studio + Static Site Generator + Live Watcher + .mcpb bundle)  
 **Primary Artifact**: [sandraschi/wikicraft](https://github.com/sandraschi/wikicraft) | `D:\Dev\repos\wikicraft`  
 
 ---

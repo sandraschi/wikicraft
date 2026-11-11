@@ -1,4 +1,4 @@
-## WikiCraft v0.2.0
+## WikiCraft v0.3.0
 
 ### Highlights
 - **High-Contrast Design (`craft-biz-ui::shell`)**: High-contrast WCAG 7:1 theme tokens, Light/Dark mode switcher, persistent settings in `%LOCALAPPDATA%\wikicraft\settings.json`.
