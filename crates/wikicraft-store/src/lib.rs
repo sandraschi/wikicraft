@@ -358,10 +358,7 @@ impl Store {
 
     pub fn save_links(&mut self, source_id: &str, target_ids: &[String]) -> Result<(), WikiError> {
         let tx = self.conn.transaction()?;
-        tx.execute(
-            "DELETE FROM links WHERE source_id = ?1",
-            params![source_id],
-        )?;
+        tx.execute("DELETE FROM links WHERE source_id = ?1", params![source_id])?;
         for t in target_ids {
             tx.execute(
                 "INSERT OR IGNORE INTO links (source_id, target_id) VALUES (?1, ?2)",
@@ -397,15 +394,15 @@ impl Store {
     }
 
     pub fn stats(&self) -> Result<WikiStats, WikiError> {
-        let page_count: i64 =
-            self.conn
-                .query_row("SELECT count(*) FROM pages", [], |r| r.get(0))?;
-        let adr_count: i64 =
-            self.conn
-                .query_row("SELECT count(*) FROM adrs", [], |r| r.get(0))?;
-        let link_count: i64 =
-            self.conn
-                .query_row("SELECT count(*) FROM links", [], |r| r.get(0))?;
+        let page_count: i64 = self
+            .conn
+            .query_row("SELECT count(*) FROM pages", [], |r| r.get(0))?;
+        let adr_count: i64 = self
+            .conn
+            .query_row("SELECT count(*) FROM adrs", [], |r| r.get(0))?;
+        let link_count: i64 = self
+            .conn
+            .query_row("SELECT count(*) FROM links", [], |r| r.get(0))?;
         Ok(WikiStats {
             page_count: page_count as usize,
             adr_count: adr_count as usize,

@@ -1,4 +1,4 @@
-# WikiCraft — Agent Protocol and Architecture
+# WikiCraft - Agent Protocol and Architecture
 
 ## Overview
 `wikicraft` is the documentation, knowledge base, and architecture decision repository for the Back-Office Craft Suite (`craft-biz`). It operates local-first on SQLite WAL with synchronous FTS5 indexing.

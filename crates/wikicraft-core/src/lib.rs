@@ -347,11 +347,40 @@ pub fn dispatch(cmd: &Command, ctx: &mut Ctx) -> Result<Value, String> {
             }
 
             let a1 = ("ADR-001", "Adopt SQLite WAL and FTS5 for Local Knowledge Store", AdrStatus::Accepted, "Need a zero-dependency, local-first embedded database for documentation and search without external services.", "Adopt SQLite with WAL journaling and FTS5 full-text indexing.", "Instant startup, zero cloud cost, ACID reliability, and sub-millisecond search.", None);
-            let a2 = ("ADR-002", "Bidirectional Wiki-Link Syntax Parsing", AdrStatus::Accepted, "Need cross-document linking and backlink tracking across markdown pages.", "Parse [[page-slug]] syntax at save time and maintain a normalized links table.", "Instant backlink lookup and topology graph visualization.", None);
-            let a3 = ("ADR-003", "Centralized Remote Cloud Wiki Sync", AdrStatus::Rejected, "Proposal to sync all markdown documents to a remote cloud SaaS wiki.", "Rejected in favor of local-first SQLite WAL and fleet event bus synchronization.", "Preserves zero-latency, full privacy, and offline functionality.", None);
+            let a2 = (
+                "ADR-002",
+                "Bidirectional Wiki-Link Syntax Parsing",
+                AdrStatus::Accepted,
+                "Need cross-document linking and backlink tracking across markdown pages.",
+                "Parse [[page-slug]] syntax at save time and maintain a normalized links table.",
+                "Instant backlink lookup and topology graph visualization.",
+                None,
+            );
+            let a3 = (
+                "ADR-003",
+                "Centralized Remote Cloud Wiki Sync",
+                AdrStatus::Rejected,
+                "Proposal to sync all markdown documents to a remote cloud SaaS wiki.",
+                "Rejected in favor of local-first SQLite WAL and fleet event bus synchronization.",
+                "Preserves zero-latency, full privacy, and offline functionality.",
+                None,
+            );
 
-            for (id, title, status, context, decision, consequences, superseded_by) in &[a1, a2, a3] {
-                if ctx.store.save_adr(id, title, status, context, decision, consequences, *superseded_by).is_ok() {
+            for (id, title, status, context, decision, consequences, superseded_by) in &[a1, a2, a3]
+            {
+                if ctx
+                    .store
+                    .save_adr(
+                        id,
+                        title,
+                        status,
+                        context,
+                        decision,
+                        consequences,
+                        *superseded_by,
+                    )
+                    .is_ok()
+                {
                     adrs_created += 1;
                 }
             }
@@ -402,7 +431,12 @@ pub fn tools() -> Vec<Value> {
             }),
             &["id"],
         ),
-        tool("wiki_page_list", "List all documentation pages", json!({}), &[]),
+        tool(
+            "wiki_page_list",
+            "List all documentation pages",
+            json!({}),
+            &[],
+        ),
         tool(
             "wiki_page_delete",
             "Delete a documentation page by ID",
@@ -449,7 +483,12 @@ pub fn tools() -> Vec<Value> {
             }),
             &["id"],
         ),
-        tool("wiki_adr_list", "List all Architecture Decision Records (ADRs)", json!({}), &[]),
+        tool(
+            "wiki_adr_list",
+            "List all Architecture Decision Records (ADRs)",
+            json!({}),
+            &[],
+        ),
         tool(
             "wiki_tree_import",
             "Recursively import a directory of Markdown documentation files into the wiki",
@@ -488,7 +527,8 @@ mod tests {
 
     #[test]
     fn test_dispatch_page_and_adr_flow() {
-        let temp_dir = std::env::temp_dir().join(format!("wiki_core_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("wiki_core_test_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&temp_dir);
         let store = Store::open(&temp_dir.join("test.db")).unwrap();
 

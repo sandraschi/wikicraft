@@ -114,8 +114,14 @@ impl App {
     fn seed_demo(&mut self) {
         match dispatch(&Command::SeedDemo, &mut self.ctx) {
             Ok(res) => {
-                let pages = res.get("pages_created").and_then(|v| v.as_u64()).unwrap_or(0);
-                let adrs = res.get("adrs_created").and_then(|v| v.as_u64()).unwrap_or(0);
+                let pages = res
+                    .get("pages_created")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                let adrs = res
+                    .get("adrs_created")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
                 self.reload();
                 self.status_msg = format!("🌱 Seeded {pages} pages and {adrs} ADRs successfully");
             }
@@ -135,10 +141,17 @@ impl App {
         };
         match dispatch(&cmd, &mut self.ctx) {
             Ok(res) => {
-                let count = res.get("imported_pages").and_then(|v| v.as_u64()).unwrap_or(0);
-                let scanned = res.get("scanned_files").and_then(|v| v.as_u64()).unwrap_or(0);
+                let count = res
+                    .get("imported_pages")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+                let scanned = res
+                    .get("scanned_files")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
                 self.reload();
-                self.status_msg = format!("📚 Imported {count} pages ({scanned} scanned) from {label}");
+                self.status_msg =
+                    format!("📚 Imported {count} pages ({scanned} scanned) from {label}");
             }
             Err(e) => {
                 self.status_msg = format!("Import error: {e}");
@@ -194,143 +207,184 @@ impl eframe::App for App {
 
         // Header bar
         ui.horizontal(|ui| {
-                ui.heading(
-                    RichText::new("📖 WikiCraft Studio")
-                        .size(19.0)
-                        .strong()
-                        .color(t.accent),
-                );
-                ui.separator();
+            ui.heading(
+                RichText::new("📖 WikiCraft Studio")
+                    .size(19.0)
+                    .strong()
+                    .color(t.accent),
+            );
+            ui.separator();
 
-                if ui
-                    .selectable_label(self.view == View::Pages, "📄 Pages")
-                    .clicked()
-                {
-                    self.view = View::Pages;
-                }
-                if ui
-                    .selectable_label(self.view == View::Adrs, "🏛️ ADR Matrix")
-                    .clicked()
-                {
-                    self.view = View::Adrs;
-                }
-                if ui
-                    .selectable_label(self.view == View::Search, "🔍 Search")
-                    .clicked()
-                {
-                    self.view = View::Search;
-                }
-                if ui
-                    .selectable_label(self.view == View::Graph, "🕸️ Wiki Graph")
-                    .clicked()
-                {
-                    self.view = View::Graph;
-                }
-
-                ui.separator();
-
-                if ui.button("🔄 Refresh").clicked() {
-                    self.reload();
-                    self.status_msg = "Reloaded".to_string();
-                }
-
-                if ui
-                    .button("🌱 Seed Demo")
-                    .on_hover_text("Insert sample documentation pages, cross-links, and ADRs")
-                    .clicked()
-                {
-                    self.seed_demo();
-                }
-
-                let import_text = if self.show_import_bar {
-                    "📂 Ingest Docs ▲"
-                } else {
-                    "📂 Ingest Docs ▼"
-                };
-                if ui
-                    .button(import_text)
-                    .on_hover_text("Open MCD and directory import tools")
-                    .clicked()
-                {
-                    self.show_import_bar = !self.show_import_bar;
-                }
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let mode_icon = if self.settings.dark { "☀️ Light" } else { "🌙 Dark" };
-                    if ui.button(mode_icon).on_hover_text("Toggle High-Contrast Light/Dark mode").clicked() {
-                        let new_dark = !self.settings.dark;
-                        shell::set_dark(ui.ctx(), &mut self.settings, new_dark);
-                        let _ = self.settings.save(&self.settings_file);
-                    }
-                    ui.label(
-                        RichText::new(format!("Actor: {}", self.ctx.actor))
-                            .color(t.text_weak),
-                    );
-                });
-            });
-
-            // Expandable Import Bar
-            if self.show_import_bar {
-                ui.add_space(4.0);
-                egui::Frame::group(ui.style())
-                    .fill(t.sunken)
-                    .stroke(Stroke::new(1.0, t.border))
-                    .corner_radius(CornerRadius::same(6))
-                    .show(ui, |ui| {
-                        ui.horizontal_wrapped(|ui| {
-                            ui.label(RichText::new("Ingest MCD Sections:").strong().color(t.text));
-
-                            let mcd_opt = locate_mcd_root();
-                            if let Some(ref mcd) = mcd_opt {
-                                if ui.button("📘 Standards").on_hover_text(format!("Import {}", mcd.join("standards").display())).clicked() {
-                                    let path = mcd.join("standards");
-                                    self.import_path(&path, "MCD Standards");
-                                }
-                                if ui.button("📗 Patterns").on_hover_text(format!("Import {}", mcd.join("patterns").display())).clicked() {
-                                    let path = mcd.join("patterns");
-                                    self.import_path(&path, "MCD Patterns");
-                                }
-                                if ui.button("📙 Operations").on_hover_text(format!("Import {}", mcd.join("operations").display())).clicked() {
-                                    let path = mcd.join("operations");
-                                    self.import_path(&path, "MCD Operations");
-                                }
-                                if ui.button("📕 Troubleshooting").on_hover_text(format!("Import {}", mcd.join("troubleshooting").display())).clicked() {
-                                    let path = mcd.join("troubleshooting");
-                                    self.import_path(&path, "MCD Troubleshooting");
-                                }
-                                if ui.button("🏛️ Architecture").on_hover_text(format!("Import {}", mcd.join("architecture").display())).clicked() {
-                                    let path = mcd.join("architecture");
-                                    self.import_path(&path, "MCD Architecture");
-                                }
-                            } else {
-                                ui.colored_label(Color32::from_rgb(220, 100, 100), "MCD repository not found automatically.");
-                            }
-
-                            ui.separator();
-                            ui.label(RichText::new("Custom Folder:").color(t.text));
-                            let edit = ui.add(
-                                egui::TextEdit::singleline(&mut self.custom_import_path)
-                                    .hint_text("d:/path/to/markdown/folder")
-                                    .desired_width(220.0),
-                            );
-                            if (ui.button("Import Path").clicked() || (edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter))))
-                                && !self.custom_import_path.trim().is_empty()
-                            {
-                                let p = PathBuf::from(self.custom_import_path.trim());
-                                self.import_path(&p, "Custom Folder");
-                            }
-                        });
-                    });
+            if ui
+                .selectable_label(self.view == View::Pages, "📄 Pages")
+                .clicked()
+            {
+                self.view = View::Pages;
+            }
+            if ui
+                .selectable_label(self.view == View::Adrs, "🏛️ ADR Matrix")
+                .clicked()
+            {
+                self.view = View::Adrs;
+            }
+            if ui
+                .selectable_label(self.view == View::Search, "🔍 Search")
+                .clicked()
+            {
+                self.view = View::Search;
+            }
+            if ui
+                .selectable_label(self.view == View::Graph, "🕸️ Wiki Graph")
+                .clicked()
+            {
+                self.view = View::Graph;
             }
 
             ui.separator();
 
-            let mut nav_to_page = None;
+            if ui.button("🔄 Refresh").clicked() {
+                self.reload();
+                self.status_msg = "Reloaded".to_string();
+            }
 
-            // Main view switcher
-            match self.view {
-                View::Pages => {
-                    ui.horizontal(|ui| {
+            if ui
+                .button("🌱 Seed Demo")
+                .on_hover_text("Insert sample documentation pages, cross-links, and ADRs")
+                .clicked()
+            {
+                self.seed_demo();
+            }
+
+            let import_text = if self.show_import_bar {
+                "📂 Ingest Docs ▲"
+            } else {
+                "📂 Ingest Docs ▼"
+            };
+            if ui
+                .button(import_text)
+                .on_hover_text("Open MCD and directory import tools")
+                .clicked()
+            {
+                self.show_import_bar = !self.show_import_bar;
+            }
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let mode_icon = if self.settings.dark {
+                    "☀️ Light"
+                } else {
+                    "🌙 Dark"
+                };
+                if ui
+                    .button(mode_icon)
+                    .on_hover_text("Toggle High-Contrast Light/Dark mode")
+                    .clicked()
+                {
+                    let new_dark = !self.settings.dark;
+                    shell::set_dark(ui.ctx(), &mut self.settings, new_dark);
+                    let _ = self.settings.save(&self.settings_file);
+                }
+                ui.label(RichText::new(format!("Actor: {}", self.ctx.actor)).color(t.text_weak));
+            });
+        });
+
+        // Expandable Import Bar
+        if self.show_import_bar {
+            ui.add_space(4.0);
+            egui::Frame::group(ui.style())
+                .fill(t.sunken)
+                .stroke(Stroke::new(1.0, t.border))
+                .corner_radius(CornerRadius::same(6))
+                .show(ui, |ui| {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(RichText::new("Ingest MCD Sections:").strong().color(t.text));
+
+                        let mcd_opt = locate_mcd_root();
+                        if let Some(ref mcd) = mcd_opt {
+                            if ui
+                                .button("📘 Standards")
+                                .on_hover_text(format!(
+                                    "Import {}",
+                                    mcd.join("standards").display()
+                                ))
+                                .clicked()
+                            {
+                                let path = mcd.join("standards");
+                                self.import_path(&path, "MCD Standards");
+                            }
+                            if ui
+                                .button("📗 Patterns")
+                                .on_hover_text(format!("Import {}", mcd.join("patterns").display()))
+                                .clicked()
+                            {
+                                let path = mcd.join("patterns");
+                                self.import_path(&path, "MCD Patterns");
+                            }
+                            if ui
+                                .button("📙 Operations")
+                                .on_hover_text(format!(
+                                    "Import {}",
+                                    mcd.join("operations").display()
+                                ))
+                                .clicked()
+                            {
+                                let path = mcd.join("operations");
+                                self.import_path(&path, "MCD Operations");
+                            }
+                            if ui
+                                .button("📕 Troubleshooting")
+                                .on_hover_text(format!(
+                                    "Import {}",
+                                    mcd.join("troubleshooting").display()
+                                ))
+                                .clicked()
+                            {
+                                let path = mcd.join("troubleshooting");
+                                self.import_path(&path, "MCD Troubleshooting");
+                            }
+                            if ui
+                                .button("🏛️ Architecture")
+                                .on_hover_text(format!(
+                                    "Import {}",
+                                    mcd.join("architecture").display()
+                                ))
+                                .clicked()
+                            {
+                                let path = mcd.join("architecture");
+                                self.import_path(&path, "MCD Architecture");
+                            }
+                        } else {
+                            ui.colored_label(
+                                Color32::from_rgb(220, 100, 100),
+                                "MCD repository not found automatically.",
+                            );
+                        }
+
+                        ui.separator();
+                        ui.label(RichText::new("Custom Folder:").color(t.text));
+                        let edit = ui.add(
+                            egui::TextEdit::singleline(&mut self.custom_import_path)
+                                .hint_text("d:/path/to/markdown/folder")
+                                .desired_width(220.0),
+                        );
+                        if (ui.button("Import Path").clicked()
+                            || (edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter))))
+                            && !self.custom_import_path.trim().is_empty()
+                        {
+                            let p = PathBuf::from(self.custom_import_path.trim());
+                            self.import_path(&p, "Custom Folder");
+                        }
+                    });
+                });
+        }
+
+        ui.separator();
+
+        let mut nav_to_page = None;
+
+        // Main view switcher
+        match self.view {
+            View::Pages => {
+                ui.horizontal(|ui| {
                         // Left sidebar: Documentation Tree
                         ui.vertical(|ui| {
                             ui.set_width(280.0);
@@ -556,84 +610,147 @@ impl eframe::App for App {
                             }
                         });
                     });
-                }
+            }
 
-                View::Adrs => {
-                    ui.heading(
-                        RichText::new("Architecture Decision Records (ADRs)")
-                            .size(19.0)
-                            .strong()
-                            .color(t.text),
-                    );
-                    ui.label(
-                        RichText::new("Formal lifecycle records: proposed → accepted/rejected → superseded")
-                            .color(t.text_weak),
-                    );
-                    ui.separator();
+            View::Adrs => {
+                ui.heading(
+                    RichText::new("Architecture Decision Records (ADRs)")
+                        .size(19.0)
+                        .strong()
+                        .color(t.text),
+                );
+                ui.label(
+                    RichText::new(
+                        "Formal lifecycle records: proposed → accepted/rejected → superseded",
+                    )
+                    .color(t.text_weak),
+                );
+                ui.separator();
 
-                    ScrollArea::vertical().show(ui, |ui| {
-                        egui::Grid::new("adr_grid")
-                            .striped(true)
-                            .spacing([24.0, 10.0])
-                            .show(ui, |ui| {
-                                ui.label(RichText::new("ID").strong().color(t.text));
-                                ui.label(RichText::new("Title").strong().color(t.text));
-                                ui.label(RichText::new("Status").strong().color(t.text));
-                                ui.label(RichText::new("Decision").strong().color(t.text));
-                                ui.label(RichText::new("Updated").strong().color(t.text));
+                ScrollArea::vertical().show(ui, |ui| {
+                    egui::Grid::new("adr_grid")
+                        .striped(true)
+                        .spacing([24.0, 10.0])
+                        .show(ui, |ui| {
+                            ui.label(RichText::new("ID").strong().color(t.text));
+                            ui.label(RichText::new("Title").strong().color(t.text));
+                            ui.label(RichText::new("Status").strong().color(t.text));
+                            ui.label(RichText::new("Decision").strong().color(t.text));
+                            ui.label(RichText::new("Updated").strong().color(t.text));
+                            ui.end_row();
+
+                            for adr in &self.adrs_list {
+                                ui.label(RichText::new(&adr.id).strong().color(t.text));
+                                ui.label(RichText::new(&adr.title).color(t.text));
+
+                                let tone = match adr.status.as_str() {
+                                    "accepted" => Tone::Ok,
+                                    "proposed" => Tone::Warn,
+                                    "rejected" => Tone::Danger,
+                                    "superseded" => Tone::Neutral,
+                                    _ => Tone::Info,
+                                };
+                                widgets::pill(ui, &adr.status, tone);
+
+                                ui.label(RichText::new(&adr.decision).color(t.text));
+                                ui.label(RichText::new(&adr.updated_at).color(t.text_weak));
                                 ui.end_row();
+                            }
+                        });
+                });
+            }
 
-                                for adr in &self.adrs_list {
-                                    ui.label(RichText::new(&adr.id).strong().color(t.text));
-                                    ui.label(RichText::new(&adr.title).color(t.text));
+            View::Search => {
+                ui.heading(
+                    RichText::new("Full-Text Documentation Search (SQLite FTS5)")
+                        .size(19.0)
+                        .strong()
+                        .color(t.text),
+                );
+                ui.separator();
 
-                                    let tone = match adr.status.as_str() {
-                                        "accepted" => Tone::Ok,
-                                        "proposed" => Tone::Warn,
-                                        "rejected" => Tone::Danger,
-                                        "superseded" => Tone::Neutral,
-                                        _ => Tone::Info,
-                                    };
-                                    widgets::pill(ui, &adr.status, tone);
-
-                                    ui.label(RichText::new(&adr.decision).color(t.text));
-                                    ui.label(RichText::new(&adr.updated_at).color(t.text_weak));
-                                    ui.end_row();
-                                }
-                            });
-                    });
-                }
-
-                View::Search => {
-                    ui.heading(
-                        RichText::new("Full-Text Documentation Search (SQLite FTS5)")
-                            .size(19.0)
-                            .strong()
-                            .color(t.text),
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Query:").strong().color(t.text));
+                    let edit = ui.add(
+                        egui::TextEdit::singleline(&mut self.search_query)
+                            .hint_text("Enter keywords (e.g. SQLite, standard, ADR)...")
+                            .desired_width(320.0),
                     );
-                    ui.separator();
+                    if edit.changed() || ui.button("Search").clicked() {
+                        self.run_search();
+                    }
+                });
 
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new("Query:").strong().color(t.text));
-                        let edit = ui.add(
-                            egui::TextEdit::singleline(&mut self.search_query)
-                                .hint_text("Enter keywords (e.g. SQLite, standard, ADR)...")
-                                .desired_width(320.0),
-                        );
-                        if edit.changed() || ui.button("Search").clicked() {
-                            self.run_search();
+                ui.add_space(8.0);
+                ScrollArea::vertical()
+                    .id_salt("search_scroll")
+                    .show(ui, |ui| {
+                        if self.search_results.is_empty() && !self.search_query.trim().is_empty() {
+                            ui.label(
+                                RichText::new("No matching documents found.").color(t.text_weak),
+                            );
+                        }
+
+                        for r in &self.search_results {
+                            egui::Frame::group(ui.style())
+                                .fill(t.surface)
+                                .stroke(Stroke::new(1.0, t.border))
+                                .corner_radius(CornerRadius::same(6))
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label(
+                                            RichText::new(&r.title)
+                                                .strong()
+                                                .size(16.0)
+                                                .color(t.text),
+                                        );
+                                        ui.label(
+                                            RichText::new(format!("({})", r.id)).color(t.text_weak),
+                                        );
+
+                                        ui.with_layout(
+                                            egui::Layout::right_to_left(egui::Align::Center),
+                                            |ui| {
+                                                if ui.button("Open Page →").clicked() {
+                                                    nav_to_page = Some(r.id.clone());
+                                                }
+                                            },
+                                        );
+                                    });
+                                    ui.add_space(4.0);
+                                    ui.label(RichText::new(&r.snippet).italics().color(t.text));
+                                });
+                            ui.add_space(6.0);
                         }
                     });
+            }
 
-                    ui.add_space(8.0);
-                    ScrollArea::vertical()
-                        .id_salt("search_scroll")
-                        .show(ui, |ui| {
-                            if self.search_results.is_empty() && !self.search_query.trim().is_empty() {
-                                ui.label(RichText::new("No matching documents found.").color(t.text_weak));
-                            }
+            View::Graph => {
+                ui.heading(
+                    RichText::new("Wiki-Link Topology & Backlink Graph")
+                        .size(19.0)
+                        .strong()
+                        .color(t.text),
+                );
+                ui.separator();
+                ui.label(
+                    RichText::new(format!(
+                        "Total tracked bidirectional links: {}",
+                        self.stats.link_count
+                    ))
+                    .color(t.text_weak),
+                );
+                ui.add_space(8.0);
 
-                            for r in &self.search_results {
+                ScrollArea::vertical()
+                    .id_salt("graph_scroll")
+                    .show(ui, |ui| {
+                        for p in &self.pages_list {
+                            let outgoing =
+                                self.ctx.store.get_outgoing_links(&p.id).unwrap_or_default();
+                            let backlinks = self.ctx.store.get_backlinks(&p.id).unwrap_or_default();
+
+                            if !outgoing.is_empty() || !backlinks.is_empty() {
                                 egui::Frame::group(ui.style())
                                     .fill(t.surface)
                                     .stroke(Stroke::new(1.0, t.border))
@@ -641,114 +758,75 @@ impl eframe::App for App {
                                     .show(ui, |ui| {
                                         ui.horizontal(|ui| {
                                             ui.label(
-                                                RichText::new(&r.title)
+                                                RichText::new(&p.title)
                                                     .strong()
-                                                    .size(16.0)
+                                                    .size(15.0)
                                                     .color(t.text),
                                             );
-                                            ui.label(RichText::new(format!("({})", r.id)).color(t.text_weak));
-
-                                            ui.with_layout(
-                                                egui::Layout::right_to_left(egui::Align::Center),
-                                                |ui| {
-                                                    if ui.button("Open Page →").clicked() {
-                                                        nav_to_page = Some(r.id.clone());
-                                                    }
-                                                },
-                                            );
+                                            if ui.button("Jump →").clicked() {
+                                                nav_to_page = Some(p.id.clone());
+                                            }
                                         });
-                                        ui.add_space(4.0);
-                                        ui.label(RichText::new(&r.snippet).italics().color(t.text));
+
+                                        if !outgoing.is_empty() {
+                                            ui.horizontal_wrapped(|ui| {
+                                                ui.label(
+                                                    RichText::new("Outgoing:").color(t.text_weak),
+                                                );
+                                                for out in &outgoing {
+                                                    if ui
+                                                        .button(RichText::new(out).color(t.accent))
+                                                        .clicked()
+                                                    {
+                                                        nav_to_page = Some(out.clone());
+                                                    }
+                                                }
+                                            });
+                                        }
+
+                                        if !backlinks.is_empty() {
+                                            ui.horizontal_wrapped(|ui| {
+                                                ui.label(
+                                                    RichText::new("Backlinks:").color(t.text_weak),
+                                                );
+                                                for bl in &backlinks {
+                                                    if ui
+                                                        .button(
+                                                            RichText::new(bl).color(t.accent_soft),
+                                                        )
+                                                        .clicked()
+                                                    {
+                                                        nav_to_page = Some(bl.clone());
+                                                    }
+                                                }
+                                            });
+                                        }
                                     });
                                 ui.add_space(6.0);
                             }
-                        });
-                }
-
-                View::Graph => {
-                    ui.heading(
-                        RichText::new("Wiki-Link Topology & Backlink Graph")
-                            .size(19.0)
-                            .strong()
-                            .color(t.text),
-                    );
-                    ui.separator();
-                    ui.label(
-                        RichText::new(format!(
-                            "Total tracked bidirectional links: {}",
-                            self.stats.link_count
-                        ))
-                        .color(t.text_weak),
-                    );
-                    ui.add_space(8.0);
-
-                    ScrollArea::vertical()
-                        .id_salt("graph_scroll")
-                        .show(ui, |ui| {
-                            for p in &self.pages_list {
-                                let outgoing = self.ctx.store.get_outgoing_links(&p.id).unwrap_or_default();
-                                let backlinks = self.ctx.store.get_backlinks(&p.id).unwrap_or_default();
-
-                                if !outgoing.is_empty() || !backlinks.is_empty() {
-                                    egui::Frame::group(ui.style())
-                                        .fill(t.surface)
-                                        .stroke(Stroke::new(1.0, t.border))
-                                        .corner_radius(CornerRadius::same(6))
-                                        .show(ui, |ui| {
-                                            ui.horizontal(|ui| {
-                                                ui.label(RichText::new(&p.title).strong().size(15.0).color(t.text));
-                                                if ui.button("Jump →").clicked() {
-                                                    nav_to_page = Some(p.id.clone());
-                                                }
-                                            });
-
-                                            if !outgoing.is_empty() {
-                                                ui.horizontal_wrapped(|ui| {
-                                                    ui.label(RichText::new("Outgoing:").color(t.text_weak));
-                                                    for out in &outgoing {
-                                                        if ui.button(RichText::new(out).color(t.accent)).clicked() {
-                                                            nav_to_page = Some(out.clone());
-                                                        }
-                                                    }
-                                                });
-                                            }
-
-                                            if !backlinks.is_empty() {
-                                                ui.horizontal_wrapped(|ui| {
-                                                    ui.label(RichText::new("Backlinks:").color(t.text_weak));
-                                                    for bl in &backlinks {
-                                                        if ui.button(RichText::new(bl).color(t.accent_soft)).clicked() {
-                                                            nav_to_page = Some(bl.clone());
-                                                        }
-                                                    }
-                                                });
-                                            }
-                                        });
-                                    ui.add_space(6.0);
-                                }
-                            }
-                        });
-                }
+                        }
+                    });
             }
+        }
 
-            if let Some(target) = nav_to_page {
-                self.load_page(&target);
-                self.view = View::Pages;
-            }
+        if let Some(target) = nav_to_page {
+            self.load_page(&target);
+            self.view = View::Pages;
+        }
 
-            // Bottom status bar
+        // Bottom status bar
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label(
+                RichText::new(format!(
+                    "Pages: {} | ADRs: {} | Links: {}",
+                    self.stats.page_count, self.stats.adr_count, self.stats.link_count
+                ))
+                .color(t.text_weak),
+            );
             ui.separator();
-            ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new(format!(
-                        "Pages: {} | ADRs: {} | Links: {}",
-                        self.stats.page_count, self.stats.adr_count, self.stats.link_count
-                    ))
-                    .color(t.text_weak),
-                );
-                ui.separator();
-                ui.label(RichText::new(&self.status_msg).color(t.text));
-            });
+            ui.label(RichText::new(&self.status_msg).color(t.text));
+        });
     }
 }
 
@@ -778,7 +856,10 @@ fn render_markdown_line(
                 None => (target_raw.trim(), target_raw.trim()),
             };
 
-            if ui.button(RichText::new(format!("🔗 {display}")).color(t.accent)).clicked() {
+            if ui
+                .button(RichText::new(format!("🔗 {display}")).color(t.accent))
+                .clicked()
+            {
                 *nav_to_page = Some(target.to_string());
             }
 
