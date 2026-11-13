@@ -39,6 +39,8 @@ struct App {
     is_editing: bool,
     edit_title: String,
     edit_content: String,
+    new_id: String,
+    new_title: String,
     // Import drawer state
     show_import_bar: bool,
     custom_import_path: String,
@@ -87,6 +89,8 @@ impl App {
             is_editing: false,
             edit_title: String::new(),
             edit_content: String::new(),
+            new_id: String::new(),
+            new_title: String::new(),
             show_import_bar: false,
             custom_import_path: String::new(),
             show_gh_wiki_bar: false,
@@ -182,6 +186,33 @@ impl App {
             Err(e) => {
                 self.status_msg = format!("Import error: {e}");
             }
+        }
+    }
+
+    fn create_page(&mut self) {
+        let id = self.new_id.trim().to_string();
+        let title = self.new_title.trim().to_string();
+        if id.is_empty() || title.is_empty() {
+            self.status_msg = "A new page needs an id and a title.".into();
+            return;
+        }
+        let content = format!("# {title}\n\n");
+        match dispatch(
+            &Command::PageSave {
+                id: id.clone(),
+                title: title.clone(),
+                content,
+            },
+            &mut self.ctx,
+        ) {
+            Ok(_) => {
+                self.status_msg = format!("Saved page {id}.");
+                self.new_id.clear();
+                self.new_title.clear();
+                self.reload();
+                self.load_page(&id);
+            }
+            Err(e) => self.status_msg = format!("Failed to save page: {e}"),
         }
     }
 
@@ -693,6 +724,15 @@ impl eframe::App for App {
                         // Left sidebar: Documentation Tree
                         ui.vertical(|ui| {
                             ui.set_width(280.0);
+                            ui.horizontal(|ui| {
+                                ui.label("New id");
+                                ui.add(egui::TextEdit::singleline(&mut self.new_id).desired_width(90.0));
+                                ui.label("Title");
+                                ui.add(egui::TextEdit::singleline(&mut self.new_title).desired_width(120.0));
+                                if ui.button("New page").clicked() {
+                                    self.create_page();
+                                }
+                            });
                             ui.horizontal(|ui| {
                                 ui.heading(RichText::new("Documentation Tree").size(15.0).color(t.text));
                                 ui.label(RichText::new(format!("({})", self.pages_list.len())).color(t.text_weak));
