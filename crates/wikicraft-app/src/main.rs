@@ -2,6 +2,8 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use craft_biz::bus::Bus;
+use craft_biz_ui::bookend::{self, Bar, Spec};
+use craft_biz_ui::menu::Item;
 use craft_biz_ui::shell::{self, settings_path, UiSettings};
 use craft_biz_ui::theme::{self, Tone};
 use craft_biz_ui::widgets;
@@ -48,6 +50,7 @@ struct App {
     show_export_bar: bool,
     export_site_path: String,
     last_export_info: Option<String>,
+    bar: Bar,
 }
 
 impl App {
@@ -92,6 +95,7 @@ impl App {
             show_export_bar: false,
             export_site_path: default_export,
             last_export_info: None,
+            bar: Bar::new(),
         };
         app.reload();
         app
@@ -341,9 +345,47 @@ fn locate_mcd_root() -> Option<PathBuf> {
     None
 }
 
+impl App {
+    fn paint_menu(&mut self, ui: &mut egui::Ui) {
+        let docs = bookend::repo_docs(env!("CARGO_MANIFEST_DIR"));
+        let spec = Spec {
+            name: "WikiCraft",
+            version: env!("CARGO_PKG_VERSION"),
+            description: "Pages, ADRs, and the demo seed.",
+            repository: "https://github.com/sandraschi/wikicraft",
+            docs: &docs,
+            dark: self.settings.dark,
+            zoom: self.settings.zoom,
+            file: vec![Item::action("Refresh", "app.refresh")],
+            view: vec![
+                Item::action("Pages", "view.pages").checked(self.view == View::Pages),
+                Item::action("ADRs", "view.adrs").checked(self.view == View::Adrs),
+                Item::action("Search", "view.search").checked(self.view == View::Search),
+                Item::action("Graph", "view.graph").checked(self.view == View::Graph),
+            ],
+            middle: Vec::new(),
+        };
+        let change = self.bar.show(ui, &spec);
+        if let Some(dark) = change.dark {
+            self.settings.dark = dark;
+        }
+        if let Some(zoom) = change.zoom {
+            self.settings.zoom = zoom;
+        }
+        match change.action.as_deref() {
+            Some("app.refresh") => self.reload(),
+            Some("view.pages") => self.view = View::Pages,
+            Some("view.adrs") => self.view = View::Adrs,
+            Some("view.search") => self.view = View::Search,
+            Some("view.graph") => self.view = View::Graph,
+            _ => {}
+        }
+    }
+}
+
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        shell::handle_zoom(ui.ctx(), &mut self.settings);
+        self.paint_menu(ui);
         let t = theme::current(ui.ctx());
 
         // Header bar
@@ -1152,6 +1194,10 @@ fn default_db() -> PathBuf {
 fn main() -> eframe::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "--smoke") {
+        if let Err(e) = bookend::smoke("WikiCraft", env!("CARGO_PKG_VERSION"), "wiki") {
+            eprintln!("smoke: menu: {e}");
+            std::process::exit(1);
+        }
         println!("smoke: ok (wikicraft)");
         return Ok(());
     }

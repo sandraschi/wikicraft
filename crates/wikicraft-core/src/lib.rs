@@ -354,7 +354,7 @@ pub fn gh_wiki_push(repo: &str, custom_msg: Option<&str>, ctx: &mut Ctx) -> Resu
     let _ = std::fs::write(dir.join("_Sidebar.md"), sidebar_content);
 
     // Auto-generate _Footer.md
-    let footer_content = "---\n*Maintained with [WikiCraft](https://github.com/sandraschi/wikicraft) — Local-first documentation studio*\n";
+    let footer_content = "---\n*Maintained with [WikiCraft](https://github.com/sandraschi/wikicraft) - Local-first documentation studio*\n";
     let _ = std::fs::write(dir.join("_Footer.md"), footer_content);
 
     // Git stage & commit
@@ -1231,7 +1231,7 @@ pub fn dispatch(cmd: &Command, ctx: &mut Ctx) -> Result<Value, String> {
             if parsed_status == AdrStatus::Accepted {
                 let _ = ctx.bus.emit(
                     "wikicraft",
-                    "*",
+                    "wikicraft",
                     "adr.accepted",
                     json!({
                         "id": adr.id,
@@ -1296,7 +1296,7 @@ pub fn dispatch(cmd: &Command, ctx: &mut Ctx) -> Result<Value, String> {
             let mut pages_created = 0usize;
             let mut adrs_created = 0usize;
 
-            let p1 = ("architecture/overview", "Architecture Overview", "# WikiCraft Documentation Hub\n\nWelcome to **WikiCraft**, the local-first documentation, SQLite FTS5 search, and Architecture Decision Record (ADR) studio.\n\n## Core Subsystems\n- [[architecture/storage]]: Storage layer architecture, SQLite WAL, and schema design.\n- [[architecture/search]]: FTS5 full-text indexing, tokenizer, and query capabilities.\n- [[fleet/standards]]: Engineering standards, crash guarantees, and protocol conventions.\n- [[guides/getting-started]]: Guide for creating pages, linking documents, and recording decisions.\n\n## Architecture Decisions\nSee [[ADR-001]] for our initial decision on SQLite WAL and FTS5, and [[ADR-002]] for wiki-link bidirectional graph indexing.");
+            let p1 = ("architecture/overview", "Architecture Overview", "DEMO. This seed is not a real company wiki.\n\n# WikiCraft Documentation Hub\n\nWelcome to **WikiCraft**, the local-first documentation, SQLite FTS5 search, and Architecture Decision Record (ADR) studio.\n\n## Core Subsystems\n- [[architecture/storage]]: Storage layer architecture, SQLite WAL, and schema design.\n- [[architecture/search]]: FTS5 full-text indexing, tokenizer, and query capabilities.\n- [[fleet/standards]]: Engineering standards, crash guarantees, and protocol conventions.\n- [[guides/getting-started]]: Guide for creating pages, linking documents, and recording decisions.\n\n## Architecture Decisions\nSee [[ADR-001]] for our initial decision on SQLite WAL and FTS5, and [[ADR-002]] for wiki-link bidirectional graph indexing.");
 
             let p2 = ("architecture/storage", "Storage Layer Architecture", "# Storage Layer & WAL Design\n\nWikiCraft persists all pages, backlinks, and ADRs in a local SQLite database.\n\n## Key Properties\n- **Write-Ahead Logging (WAL)**: Concurrent reads during writes, sub-millisecond transactions.\n- **Embedded Simplicity**: Zero network dependencies, zero background daemons required.\n- **Cross-Links**: Automatically parsed from `[[page-slug]]` syntax.\n\nReferenced by [[architecture/overview]].");
 
@@ -1597,5 +1597,47 @@ mod tests {
             r#"<a class="wiki-link" href="./guide__getting-started.html">Getting Started</a>"#
         ));
         assert!(html.contains(r#"<pre><code class="language-rust">fn main() {}"#));
+    }
+
+    #[test]
+    fn accepted_adr_emits_one_event_and_seed_is_marked_demo() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("wiki_core_demo_{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let store = Store::open(&temp_dir.join("test.db")).unwrap();
+        let mut ctx = Ctx {
+            store,
+            confinement: Confinement(None),
+            bus: Bus::new(temp_dir.join("bus")),
+            actor: "test".to_string(),
+        };
+        dispatch(&Command::SeedDemo, &mut ctx).unwrap();
+        let page = ctx.store.get_page("architecture/overview").unwrap();
+        assert!(page.content.starts_with("DEMO."));
+        let proposed = Command::AdrSave {
+            id: "ADR-010".to_string(),
+            title: "Stay proposed".to_string(),
+            status: "proposed".to_string(),
+            context: "A trial".to_string(),
+            decision: "Not yet".to_string(),
+            consequences: "Nothing changes".to_string(),
+            superseded_by: None,
+        };
+        dispatch(&proposed, &mut ctx).unwrap();
+        assert!(ctx.bus.pending("wikicraft").unwrap().is_empty());
+        let accepted = Command::AdrSave {
+            id: "ADR-011".to_string(),
+            title: "Accept local notes".to_string(),
+            status: "accepted".to_string(),
+            context: "The notes stay on this machine".to_string(),
+            decision: "Keep the wiki local".to_string(),
+            consequences: "No hosted wiki".to_string(),
+            superseded_by: None,
+        };
+        dispatch(&accepted, &mut ctx).unwrap();
+        let events = ctx.bus.pending("wikicraft").unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, "adr.accepted");
+        assert_eq!(events[0].payload["id"], "ADR-011");
     }
 }

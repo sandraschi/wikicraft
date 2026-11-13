@@ -13,7 +13,7 @@ https://github.com/<owner>/<repo>.wiki.git
 
 ### Key GitHub Wiki Properties
 - **Git Backend:** It is a standard Git repository containing flat Markdown files.
-- **Link Syntax:** GitHub Wiki natively parses `[[Page Name]]` and `[[Target|Custom Label]]` wiki-links — identical to WikiCraft's parser.
+- **Link Syntax:** GitHub Wiki natively parses `[[Page Name]]` and `[[Target|Custom Label]]` wiki-links - identical to WikiCraft's parser.
 - **`Home.md`:** The landing page rendered when visiting `https://github.com/<owner>/<repo>/wiki`.
 - **`_Sidebar.md`:** A special file GitHub renders as the navigation sidebar.
 - **`_Footer.md`:** A special file rendered at the bottom of every wiki page.

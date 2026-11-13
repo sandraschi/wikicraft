@@ -1,5 +1,7 @@
 # WikiCraft: Product Requirements Document
 
+Status 13 November 2026. FTS5, wiki-links, ADR state, and a GitHub wiki export exist. The test suite is five functions under version 0.3.0. The window has File, Edit, View, Window, and Help. View switches Pages, ADRs, Search, and Graph. The New, Open, and Save rows below are still the target. Undo, cut, and the canvas items are on the menu and disabled.
+
 ## 1. Executive Summary
 
 `wikicraft` is the central documentation, knowledge repository, and Architecture Decision Record (ADR) management system of the Back-Office Craft Suite (`craft-biz`). It provides a local-first, zero-cloud alternative to enterprise wiki platforms with sub-millisecond full-text search and bidirectional link topology tracking.

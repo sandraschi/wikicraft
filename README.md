@@ -1,5 +1,10 @@
 # wikicraft
 
+![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)
+![Rust 1.90+](https://img.shields.io/badge/rust-1.90%2B-orange?logo=rust)
+![MCP stdio](https://img.shields.io/badge/MCP-stdio-purple)
+![ArtCraft harness](https://img.shields.io/badge/ArtCraft-harness-green)
+
 > Local-first Markdown documentation, SQLite FTS5 full-text search, GitHub Wiki synchronizer, and Architecture Decision Record (ADR) lifecycle studio.
 
 Part of the **Back-Office Craft Suite** (`craft-biz`). Replaces Confluence (\$60/seat/mo), Notion Team (\$100/seat/mo), and Slite with zero-cloud latency, complete privacy, bidirectional GitHub Wiki synchronization, and air-gapped reliability.
