@@ -5,6 +5,16 @@
 ![MCP stdio](https://img.shields.io/badge/MCP-stdio-purple)
 ![ArtCraft harness](https://img.shields.io/badge/ArtCraft-harness-green)
 
+## Install
+
+Tell Cursor, Claude, Antigravity, or OpenCode: **Install this.**
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-craft.ps1
+```
+
+Installs the Windows app, the CLI, and the MCP bundle.
+
 > Local-first Markdown documentation, SQLite FTS5 full-text search, GitHub Wiki synchronizer, and Architecture Decision Record (ADR) lifecycle studio.
 
 Part of the **Back-Office Craft Suite** (`craft-biz`). Replaces Confluence (\$60/seat/mo), Notion Team (\$100/seat/mo), and Slite with zero-cloud latency, complete privacy, bidirectional GitHub Wiki synchronization, and air-gapped reliability.
