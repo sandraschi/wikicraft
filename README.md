@@ -1,9 +1,23 @@
 # wikicraft
 
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
+
 ![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)
 ![Rust 1.90+](https://img.shields.io/badge/rust-1.90%2B-orange?logo=rust)
 ![MCP stdio](https://img.shields.io/badge/MCP-stdio-purple)
 ![ArtCraft harness](https://img.shields.io/badge/ArtCraft-harness-green)
+
+## Install
+
+Tell Cursor, Claude, Antigravity, or OpenCode: **Install this.**
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-craft.ps1
+```
+
+Installs the Windows app, the CLI, and the MCP bundle.
 
 > Local-first Markdown documentation, SQLite FTS5 full-text search, GitHub Wiki synchronizer, and Architecture Decision Record (ADR) lifecycle studio.
 
@@ -33,6 +47,10 @@ Part of the **Back-Office Craft Suite** (`craft-biz`). Replaces Confluence (\$60
 ```powershell
 .\start.ps1        # or .\start.bat
 # or directly:
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 target\release\wikicraft.exe
 ```
 
@@ -40,38 +58,82 @@ target\release\wikicraft.exe
 
 ```bash
 # Seed initial demo documentation and ADRs
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp seed-demo
 
 # Check status and document counts
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp status
 
 # Synchronize with a GitHub repository wiki
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp gh-pull sandraschi/wikicraft
 wikicraft-mcp gh-status sandraschi/wikicraft
 wikicraft-mcp gh-push sandraschi/wikicraft --message "docs: sync from WikiCraft"
 
 # Export standalone static HTML website
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp site-export ./dist/site
 
 # Run concurrent HTTP/MCP server on port 11261
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp serve --port 11261
 
 # Watch a directory for real-time markdown updates
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp watch d:/Dev/repos/mcp-central-docs/standards
 
 # Save or update a markdown page
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp page-save architecture/db "Database Architecture" "We use SQLite WAL with [[architecture/overview]]."
 
 # Search documentation with highlighted snippets
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp search "SQLite"
 
 # Propose an Architecture Decision Record (ADR)
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp adr-save ADR-001 "Adopt Rust 2021" proposed "Need memory safety" "Adopt Rust across fleet" "Zero runtime overhead"
 
 # Import an entire folder of markdown documents
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp tree-import d:/Dev/repos/mcp-central-docs/standards
 
 # Launch MCP server on stdio for AI coding agents
+
+## Screenshots, Demo Videos & Walkthroughs
+
+> **Under Construction:** Full `egui` screenshots, demo videos, and interactive walkthroughs are currently under construction.
 wikicraft-mcp mcp
 ```
 
